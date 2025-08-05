@@ -6,7 +6,7 @@ use std::io::Cursor;
 fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let reader = Cursor::new(input);
-    lint_lines("<stdin>", reader, &mut diags, &opts);
+    lint_lines("<stdin>", reader, &mut diags, opts);
     diags
 }
 
@@ -66,30 +66,12 @@ fn detects_conflict_markers() {
     let codes: Vec<&str> = diags.iter().map(|d| d.code.as_str()).collect();
 
     assert_eq!(diags.len(), 3);
-    assert_eq!(
-        lnums,
-        [0, 2, 4]
-    );
-    assert_eq!(
-        end_lnums,
-        [0, 2, 4]
-    );
-    assert_eq!(
-        cols,
-        [0, 0, 0]
-    );
-    assert_eq!(
-        end_cols,
-        [11, 6, 6]
-    );
-    assert_eq!(
-        sources,
-        ["<<<<<<< HEAD\n", "=======\n", ">>>>>>>\n"]
-    );
-    assert_eq!(
-        source_lnums,
-        [0, 2, 4]
-    );
+    assert_eq!(lnums, [0, 2, 4]);
+    assert_eq!(end_lnums, [0, 2, 4]);
+    assert_eq!(cols, [0, 0, 0]);
+    assert_eq!(end_cols, [11, 6, 6]);
+    assert_eq!(sources, ["<<<<<<< HEAD\n", "=======\n", ">>>>>>>\n"]);
+    assert_eq!(source_lnums, [0, 2, 4]);
     assert_eq!(
         codes,
         ["conflict-marker", "conflict-marker", "conflict-marker"]
@@ -138,7 +120,11 @@ fn detects_control_char() {
 
 #[test]
 fn detects_consecutive_blank() {
-    let err_str = vec!["\n\n\nlet x = 5;\n", "\n\n\n\nlet y = 10;\n", "let z = 15;\n\n\n\n\n\n"];
+    let err_str = [
+        "\n\n\nlet x = 5;\n",
+        "\n\n\n\nlet y = 10;\n",
+        "let z = 15;\n\n\n\n\n\n",
+    ];
     let src = err_str.join("");
     let opts = LintOptions {
         disables: Vec::new(),
@@ -153,44 +139,37 @@ fn detects_consecutive_blank() {
     let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
     let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
     let codes: Vec<&str> = diags.iter().map(|d| d.code.as_str()).collect();
-    let pos: Vec<usize> = diags.iter().map(|d| coord_to_pos(&d.source, d.source_lnum, d.lnum, d.col)).collect();
-    let end_pos: Vec<usize> = diags.iter().map(|d| coord_to_pos(&d.source, d.source_lnum, d.end_lnum, d.end_col)).collect();
+    let pos: Vec<usize> = diags
+        .iter()
+        .map(|d| coord_to_pos(&d.source, d.source_lnum, d.lnum, d.col))
+        .collect();
+    let end_pos: Vec<usize> = diags
+        .iter()
+        .map(|d| coord_to_pos(&d.source, d.source_lnum, d.end_lnum, d.end_col))
+        .collect();
 
     assert_eq!(diags.len(), 3);
-    assert_eq!(
-        lnums,
-        [0, 4, 10]
-    );
-    assert_eq!(
-        end_lnums,
-        [2, 7, 14]
-    );
-    assert_eq!(
-        cols,
-        [0, 0, 0]
-    );
-    assert_eq!(
-        end_cols,
-        [0, 0, 0]
-    );
+    assert_eq!(lnums, [0, 4, 10]);
+    assert_eq!(end_lnums, [2, 7, 14]);
+    assert_eq!(cols, [0, 0, 0]);
+    assert_eq!(end_cols, [0, 0, 0]);
     assert_eq!(
         sources,
-        [err_str[0], format!("let x = 5;\n{}", err_str[1]).as_str(), err_str[2]]
+        [
+            err_str[0],
+            format!("let x = 5;\n{}", err_str[1]).as_str(),
+            err_str[2]
+        ]
     );
-    assert_eq!(
-        source_lnums,
-        [0, 3, 9]
-    );
+    assert_eq!(source_lnums, [0, 3, 9]);
     assert_eq!(
         codes,
-        ["consecutive-blank", "consecutive-blank", "consecutive-blank"]
+        [
+            "consecutive-blank",
+            "consecutive-blank",
+            "consecutive-blank"
+        ]
     );
-    assert_eq!(
-        pos,
-        [0, 11, 12]
-    );
-    assert_eq!(
-        end_pos,
-        [2, 14, 16]
-    );
+    assert_eq!(pos, [0, 11, 12]);
+    assert_eq!(end_pos, [2, 14, 16]);
 }
