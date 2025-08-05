@@ -1,6 +1,6 @@
+use clap::ValueEnum;
 use serde::Serialize;
 use serde_partial::SerializePartial;
-use clap::ValueEnum;
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
 pub enum Format {

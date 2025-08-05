@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use clap::{arg, value_parser, ArgAction, ArgGroup, Command, Arg};
+use crate::types::{DisableCheck, Format};
+use clap::{Arg, ArgAction, ArgGroup, Command, arg, value_parser};
 use clap_complete::Shell;
-use crate::types::{Format, DisableCheck};
+use std::path::PathBuf;
 
 pub fn build_cli() -> Command {
     Command::new("genlint")
@@ -25,32 +25,29 @@ pub fn build_cli() -> Command {
         .arg(
             arg!(-e --"exclude" <PATTERNS> "Glob patterns to exclude")
                 .value_delimiter(',')
-                .num_args(1..)
+                .num_args(1..),
         )
         .arg(
             arg!(-f --"format" <FORMAT> "Output format")
                 .value_parser(value_parser!(Format))
-                .default_value("plain")
+                .default_value("plain"),
         )
-        .arg(
-            arg!(-o --"output" <FILE> "Output file path")
-                .value_parser(value_parser!(PathBuf))
-        )
+        .arg(arg!(-o --"output" <FILE> "Output file path").value_parser(value_parser!(PathBuf)))
         .arg(
             arg!(-d --"disable" <CHECKS> "Disable specific checks")
                 .value_delimiter(',')
                 .num_args(1..)
-                .value_parser(value_parser!(DisableCheck))
+                .value_parser(value_parser!(DisableCheck)),
         )
         .arg(
             arg!(-l --"max-line-length" <NUM> "Maximum allowed line length")
                 .value_parser(value_parser!(usize))
-                .default_value("120")
+                .default_value("120"),
         )
         .arg(
             arg!(-c --"max-consecutive-blank" <NUM> "Maximum allowed consecutive blank lines")
                 .value_parser(value_parser!(usize))
-                .default_value("1")
+                .default_value("1"),
         )
         .subcommand(
             Command::new("generate-completion")
@@ -62,8 +59,10 @@ pub fn build_cli() -> Command {
                         .help("Shell type (bash, zsh, fish, and powershell.)"),
                 ),
         )
-        .group(ArgGroup::new("input-mode")
-            .required(true)
-            .args(["stdin", "input"]))
+        .group(
+            ArgGroup::new("input-mode")
+                .required(true)
+                .args(["stdin", "input"]),
+        )
         .subcommand_negates_reqs(true)
 }

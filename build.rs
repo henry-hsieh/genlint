@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use clap::Command;
-use clap_complete::{generate_to, Shell};
+use clap_complete::{Shell, generate_to};
 
 fn build_cli() -> Command {
     Command::new("genlint")
@@ -18,6 +18,9 @@ fn main() {
     for &shell in &[Shell::Bash, Shell::Zsh, Shell::Fish, Shell::PowerShell] {
         let path = generate_to(shell, &mut cli, "genlint", completions_dir)
             .expect("Failed to generate completion script");
-        println!("cargo:warning=Completion file generated: {}", path.display());
+        println!(
+            "cargo:warning=Completion file generated: {}",
+            path.display()
+        );
     }
 }
