@@ -89,9 +89,16 @@ jobs:
             tar -czf dist/${FOLDER_NAME}.tar.gz $FOLDER_NAME
           fi
 
+      - name: Get token
+        uses: actions/create-github-app-token@v1
+        id: get_token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.get_token.outputs.token }}

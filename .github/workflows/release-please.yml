@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   release:
@@ -14,8 +17,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Get token
+        uses: actions/create-github-app-token@v1
+        id: get_token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
       - name: Release Please
         uses: googleapis/release-please-action@v4
         with:
+          token: ${{ steps.get_token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
