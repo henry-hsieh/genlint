@@ -17,6 +17,10 @@ path = "src/lib.rs"
 name = "genlint"
 path = "src/main.rs"
 
+[profile.release]
+strip = "symbols"
+lto = true
+
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 clap_complete = "4.2"
