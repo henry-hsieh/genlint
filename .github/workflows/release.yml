@@ -90,7 +90,7 @@ jobs:
           fi
 
       - name: Get token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         id: get_token
         with:
           app-id: ${{ vars.APP_ID }}
