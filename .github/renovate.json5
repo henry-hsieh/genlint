@@ -1,11 +1,20 @@
 {
   automerge: true,
-  extends: ["config:base"],
+  extends: [
+    'config:recommended',
+    ':dependencyDashboard',
+  ],
   packageRules: [
     {
       matchManagers: ["cargo"],
       groupName: "cargo dependencies",
     }
-  ]
+  ],
+  platformAutomerge: true,
+  automergeType: 'pr',
+  prHourlyLimit: 0,
+  prConcurrentLimit: 0,
+  branchConcurrentLimit: 0,
+  rebaseWhen: 'behind-base-branch',
 }
 
