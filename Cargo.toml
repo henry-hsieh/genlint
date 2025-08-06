@@ -38,3 +38,4 @@ predicates = "3.0"
 [build-dependencies]
 clap = { version = "4.4", features = ["derive"] }
 clap_complete = "4.2"
+clap_mangen = "0.2.29"
