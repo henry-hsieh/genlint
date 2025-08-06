@@ -83,9 +83,18 @@ jobs:
 
           if [[ "${{ matrix.os }}" == "windows" ]]; then
             cp target/${{ matrix.target }}/release/${BIN_NAME}.exe $FOLDER_NAME/
-            zip -r dist/${FOLDER_NAME}.zip $FOLDER_NAME
           else
             cp target/${{ matrix.target }}/release/${BIN_NAME} $FOLDER_NAME/
+          fi
+
+          # Copy completions and man page if they exist
+          shopt -s nullglob
+          for file in completions/*; do cp "$file" "$FOLDER_NAME/"; done
+          for file in man/*; do cp "$file" "$FOLDER_NAME/"; done
+
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            zip -r dist/${FOLDER_NAME}.zip $FOLDER_NAME
+          else
             tar -czf dist/${FOLDER_NAME}.tar.gz $FOLDER_NAME
           fi
 
