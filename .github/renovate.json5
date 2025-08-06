@@ -1,0 +1,11 @@
+{
+  automerge: true,
+  extends: ["config:base"],
+  packageRules: [
+    {
+      matchManagers: ["cargo"],
+      groupName: "cargo dependencies",
+    }
+  ]
+}
+
