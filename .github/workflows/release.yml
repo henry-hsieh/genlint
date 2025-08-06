@@ -1,105 +1,150 @@
-name: Release Binaries
+name: Build, Test, and Release
 
 on:
+  pull_request:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
 
 jobs:
-  release-binaries:
-    name: Build and Upload Binaries
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            arch: amd64
-            os: darwin
-            ext: tar.gz
-          - target: aarch64-apple-darwin
-            arch: arm64
-            os: darwin
-            ext: tar.gz
-
-          - target: x86_64-unknown-freebsd
-            arch: amd64
-            os: freebsd
-            ext: tar.gz
-          - target: aarch64-unknown-freebsd
-            arch: arm64
-            os: freebsd
-            ext: tar.gz
-
-          - target: x86_64-unknown-linux-gnu
-            arch: amd64
-            os: linux
-            ext: tar.gz
-          - target: aarch64-unknown-linux-gnu
-            arch: arm64
-            os: linux
-            ext: tar.gz
-
-          - target: x86_64-unknown-linux-musl
-            arch: amd64
-            os: linux
-            musl: true
-            ext: tar.gz
-          - target: aarch64-unknown-linux-musl
-            arch: arm64
-            os: linux
-            musl: true
-            ext: tar.gz
-
-          - target: x86_64-pc-windows-gnu
-            arch: amd64
-            os: windows
-            ext: zip
-          - target: aarch64-pc-windows-gnu
-            arch: arm64
-            os: windows
-            ext: zip
-
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # commitlint
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.json
+        env:
+          COMMIT_RANGE: ${{ github.event.before }}..${{ github.event.after }}
+
+      # rustfmt
+      - name: Check Rust code formatting
+        run: cargo fmt --all --check
+
+      # clippy
+      - name: Lint Rust code
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+  release:
+    name: ${{ matrix.job.target }} (${{ matrix.job.os }})
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: aarch64-unknown-linux-gnu   , os: ubuntu-22.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl  , os: ubuntu-22.04, use-cross: true }
+          - { target: x86_64-apple-darwin         , os: macos-13                      }
+          - { target: aarch64-apple-darwin        , os: macos-14                      }
+          - { target: x86_64-pc-windows-gnu       , os: windows-2022                  }
+          - { target: x86_64-pc-windows-msvc      , os: windows-2022                  }
+          - { target: aarch64-pc-windows-msvc     , os: windows-11-arm                }
+          - { target: x86_64-unknown-linux-gnu    , os: ubuntu-22.04, use-cross: true }
+          - { target: x86_64-unknown-linux-musl   , os: ubuntu-22.04, use-cross: true }
+    env:
+      BUILD_CMD: cargo
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install prerequisites
+        shell: bash
+        run: |
+          case ${{ matrix.job.target }} in
+            aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+          esac
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.job.target }}
+          toolchain: "${{ contains(matrix.job.target, 'windows-') && '1.88.0' || 'stable' }}"
+
       - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+        if: matrix.job.use-cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Use cross for build command
+        if: matrix.job.use-cross
+        shell: bash
+        run: echo "BUILD_CMD=cross" >> $GITHUB_ENV
+
+      - name: Show toolchain info
+        shell: bash
+        run: |
+          gcc --version || true
+          rustc -V
+          cargo -V
+          rustup show
 
       - name: Build binary
-        run: cross build --release --target ${{ matrix.target }}
+        shell: bash
+        run: $BUILD_CMD build --locked --release --target=${{ matrix.job.target }}
 
-      - name: Strip binary
-        if: matrix.os != 'windows'
+      - name: Strip binary (if non-Windows)
+        if: ${{ !contains(matrix.job.target, 'windows') }}
+        shell: bash
         run: |
-          strip target/${{ matrix.target }}/release/genlint || echo "strip failed; skipping"
+          strip target/${{ matrix.job.target }}/release/genlint || echo "strip failed"
 
-      - name: Prepare artifact
+      - name: Run tests
+        shell: bash
+        run: $BUILD_CMD test --locked --release --target=${{ matrix.job.target }}
+
+      - name: Package artifacts
+        shell: bash
         run: |
-          mkdir -p dist
           BIN_NAME=genlint
           VERSION=${GITHUB_REF##*/}
-          FOLDER_NAME=${BIN_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}
-          mkdir $FOLDER_NAME
+          OS=$(echo "${{ matrix.job.target }}" | cut -d'-' -f3)
+          ARCH=$(echo "${{ matrix.job.target }}" | cut -d'-' -f1)
 
-          if [[ "${{ matrix.os }}" == "windows" ]]; then
-            cp target/${{ matrix.target }}/release/${BIN_NAME}.exe $FOLDER_NAME/
+          FOLDER_NAME="${BIN_NAME}-${VERSION}-${OS}-${ARCH}"
+          mkdir -p dist "$FOLDER_NAME"
+
+          if [[ "${{ matrix.job.target }}" == *"windows"* ]]; then
+            cp "target/${{ matrix.job.target }}/release/${BIN_NAME}.exe" "$FOLDER_NAME/"
           else
-            cp target/${{ matrix.target }}/release/${BIN_NAME} $FOLDER_NAME/
+            cp "target/${{ matrix.job.target }}/release/${BIN_NAME}" "$FOLDER_NAME/"
           fi
 
-          # Copy completions and man page if they exist
-          shopt -s nullglob
-          for file in completions/*; do cp "$file" "$FOLDER_NAME/"; done
-          for file in man/*; do cp "$file" "$FOLDER_NAME/"; done
+          cp -r completions/* "$FOLDER_NAME/" || echo "no completions"
+          cp -r man/* "$FOLDER_NAME/" || echo "no manpages"
 
-          if [[ "${{ matrix.os }}" == "windows" ]]; then
-            zip -r dist/${FOLDER_NAME}.zip $FOLDER_NAME
+          if [[ "${{ matrix.job.target }}" == *"windows"* ]]; then
+            7z a "dist/${FOLDER_NAME}.zip" "./${FOLDER_NAME}/*"
           else
-            tar -czf dist/${FOLDER_NAME}.tar.gz $FOLDER_NAME
+            tar -czf "dist/${FOLDER_NAME}.tar.gz" "$FOLDER_NAME"
           fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.job.target }}
+          path: |
+            dist/*
+
+      - name: Check for release
+        id: is-release
+        shell: bash
+        run: |
+          unset IS_RELEASE ; if [[ $GITHUB_REF =~ ^refs/tags/v[0-9].* ]]; then IS_RELEASE='true' ; fi
+          echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
 
       - name: Get token
         uses: actions/create-github-app-token@v2
+        if: steps.is-release.outputs.IS_RELEASE
         id: get_token
         with:
           app-id: ${{ vars.APP_ID }}
@@ -107,6 +152,7 @@ jobs:
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
+        if: ${{ steps.get_token.outcome == 'success' }}
         with:
           files: dist/*
         env:

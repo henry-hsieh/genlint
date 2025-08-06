@@ -1,6 +1,6 @@
 # genlint
 
-![CI](https://github.com/henry-hsieh/genlint/actions/workflows/test.yml/badge.svg)
+![CI](https://github.com/henry-hsieh/genlint/actions/workflows/release.yml/badge.svg)
 ![Release](https://github.com/henry-hsieh/genlint/actions/workflows/release-please.yml/badge.svg)
 
 A generic and flexible linter tool written in Rust. The genlint supports multiple rules, formats, and input sources.
