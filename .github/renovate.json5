@@ -1,11 +1,14 @@
 {
   automerge: true,
-  extends: ["config:base"],
+  extends: [
+    'config:recommended',
+  ],
   packageRules: [
     {
-      matchManagers: ["cargo"],
-      groupName: "cargo dependencies",
-    }
-  ]
+      matchManagers: [
+        'cargo',
+      ],
+      groupName: 'cargo dependencies',
+    },
+  ],
 }
-
