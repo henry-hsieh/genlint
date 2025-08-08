@@ -1,4 +1,5 @@
 use annotate_snippets::{Annotation, Level};
+use unicode_width::UnicodeWidthChar;
 
 pub fn coord_to_pos(source: &str, source_lnum: usize, lnum: usize, col: usize) -> usize {
     let mut cur_lnum = source_lnum;
@@ -49,4 +50,26 @@ pub fn severity_to_level(severity: &str) -> Level {
         "hint" => Level::Note,
         _ => todo!("Unknown severity level: {}", severity),
     }
+}
+
+pub fn byte_col_at_visual_width(line: &str, width: usize) -> usize {
+    let mut visual_width = 0;
+    let mut last_index = line.len() - 1;
+
+    for (i, ch) in line.char_indices() {
+        let ch_width = if ch == '\t' {
+            4
+        } else {
+            UnicodeWidthChar::width(ch).unwrap_or(0)
+        };
+
+        visual_width += ch_width;
+
+        if visual_width > width {
+            last_index = i;
+            break;
+        }
+    }
+
+    last_index
 }

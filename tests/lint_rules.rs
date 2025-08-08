@@ -11,7 +11,7 @@ fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
 }
 
 #[test]
-fn detects_mixed_indentation() {
+fn detects_mixed_indentation_tab() {
     let src = "\t  let x = 5;\n";
     let opts = LintOptions {
         disables: Vec::new(),
@@ -22,9 +22,28 @@ fn detects_mixed_indentation() {
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
-    assert_eq!(diags[0].col, 1);
-    assert_eq!(diags[0].end_col, 1);
-    assert_eq!(diags[0].source, "   let x = 5;\n");
+    assert_eq!(diags[0].col, 4);
+    assert_eq!(diags[0].end_col, 4);
+    assert_eq!(diags[0].source, "      let x = 5;\n");
+    assert_eq!(diags[0].source_lnum, 0);
+    assert_eq!(diags[0].code, "mix-indent");
+}
+
+#[test]
+fn detects_mixed_indentation_space() {
+    let src = "  \tlet x = 5;\n";
+    let opts = LintOptions {
+        disables: Vec::new(),
+        line_length: 120,
+        consecutive_blank: 1,
+    };
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 2);
+    assert_eq!(diags[0].end_col, 5);
+    assert_eq!(diags[0].source, "      let x = 5;\n");
     assert_eq!(diags[0].source_lnum, 0);
     assert_eq!(diags[0].code, "mix-indent");
 }
@@ -172,4 +191,43 @@ fn detects_consecutive_blank() {
     );
     assert_eq!(pos, [0, 11, 12]);
     assert_eq!(end_pos, [2, 14, 16]);
+}
+
+#[test]
+fn detects_cjk_trailing_space() {
+    let src = "let x = \"\t中文\";  \nlet y = 10;\n";
+    let opts = LintOptions {
+        disables: Vec::new(),
+        line_length: 120,
+        consecutive_blank: 1,
+    };
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 21);
+    assert_eq!(diags[0].end_col, 22);
+    assert_eq!(diags[0].source, "let x = \"    中文\";  \n");
+    assert_eq!(diags[0].source_lnum, 0);
+    assert_eq!(diags[0].code, "trailing-space");
+}
+
+#[test]
+fn detects_cjk_long_line() {
+    let err_str = format!("let z = \"{}\";\n", "中文".repeat(30));
+    let src = format!("let x = 5;\nlet y = 10;\n{err_str}");
+    let opts = LintOptions {
+        disables: Vec::new(),
+        line_length: 120,
+        consecutive_blank: 1,
+    };
+    let diags = run_lint(src.as_str(), &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 2);
+    assert_eq!(diags[0].end_lnum, 2);
+    assert_eq!(diags[0].col, 174);
+    assert_eq!(diags[0].end_col, 190);
+    assert_eq!(diags[0].source, err_str.as_str());
+    assert_eq!(diags[0].source_lnum, 2);
+    assert_eq!(diags[0].code, "long-line");
 }
