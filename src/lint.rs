@@ -1,8 +1,9 @@
 use std::cmp::max;
 use std::io::BufRead;
+use unicode_width::UnicodeWidthStr;
 
 use crate::types::{Diagnostic, DisableCheck::*, Helper, LintOptions};
-use crate::util::find_non_space_col;
+use crate::util::{byte_col_at_visual_width, find_non_space_col};
 
 pub fn lint_lines<R: BufRead>(
     filename: &str,
@@ -25,8 +26,9 @@ pub fn lint_lines<R: BufRead>(
     for (i, line) in lines.iter().enumerate() {
         let lnum = i;
         let trimmed = line.trim_end_matches(['\r', '\n']).to_string();
-        let eol_col = max(trimmed.len(), 1) - 1;
-        let line_retab = line.replace('\t', " ");
+        let trimmed_retab = trimmed.replace('\t', "    ");
+        let eol_col = max(trimmed_retab.len(), 1) - 1;
+        let line_retab = line.replace('\t', "    ");
 
         if !opts.disables.contains(&MixIndent)
             && let Some(non_space_col) = find_non_space_col(&trimmed)
@@ -50,15 +52,23 @@ pub fn lint_lines<R: BufRead>(
                 end_col: if space_col == 0 {
                     tab_col - 1
                 } else {
-                    space_col - 1
+                    space_col * 4 - 1
                 },
             };
             diagnostics.push(Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,
-                col: max(space_col, tab_col),
-                end_col: max(space_col, tab_col),
+                col: if space_col == 0 {
+                    tab_col
+                } else {
+                    space_col * 4
+                },
+                end_col: if space_col == 0 {
+                    tab_col + 3
+                } else {
+                    space_col * 4
+                },
                 severity: "warning".into(),
                 source: line_retab.clone(),
                 source_lnum: lnum,
@@ -69,8 +79,8 @@ pub fn lint_lines<R: BufRead>(
         }
 
         if !opts.disables.contains(&TrailingSpace) {
-            let trimmed_trailing_space = line.trim_end_matches(['\r', '\n', ' ', '\t']);
-            if trimmed.len() > trimmed_trailing_space.len() {
+            let trimmed_trailing_space = trimmed_retab.trim_end_matches(['\r', '\n', ' ', '\t']);
+            if trimmed_retab.len() > trimmed_trailing_space.len() {
                 diagnostics.push(Diagnostic {
                     file: filename.to_string(),
                     lnum,
@@ -107,18 +117,25 @@ pub fn lint_lines<R: BufRead>(
             });
         }
 
-        if !opts.disables.contains(&LongLine) && trimmed.len() > opts.line_length {
+        if !opts.disables.contains(&LongLine)
+            && let limit = byte_col_at_visual_width(&line_retab, opts.line_length)
+            && eol_col > limit
+        {
             diagnostics.push(Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,
-                col: opts.line_length,
+                col: limit,
                 end_col: eol_col,
                 severity: "information".into(),
                 source: line_retab.clone(),
                 source_lnum: lnum,
                 code: "long-line".into(),
-                message: format!("Too long line ({}/{})", eol_col + 1, opts.line_length),
+                message: format!(
+                    "Too long line ({}/{})",
+                    UnicodeWidthStr::width(trimmed_retab.as_str()),
+                    opts.line_length
+                ),
                 helpers: None,
             });
         }
