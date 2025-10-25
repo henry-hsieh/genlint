@@ -4,8 +4,9 @@ use clap_complete::Shell;
 use std::path::PathBuf;
 
 pub fn build_cli() -> Command {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
     Command::new("genlint")
-        .version("0.1.0")
+        .version(VERSION)
         .about("A generic, configurable linter for multiple languages")
         .subcommand_required(false)
         .arg_required_else_help(true)
