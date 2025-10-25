@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/henry-hsieh/genlint/compare/v0.2.0...v0.2.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* **args:** get version from CARGO_PKG_VERSION ([#13](https://github.com/henry-hsieh/genlint/issues/13)) ([083909e](https://github.com/henry-hsieh/genlint/commit/083909eef48869584aec53a503aae34f309a5c73))
+* **deps:** update cargo dependencies ([#15](https://github.com/henry-hsieh/genlint/issues/15)) ([8116560](https://github.com/henry-hsieh/genlint/commit/81165606186982cac5d87f9012586cedd5b5d657))
+
 ## [0.2.0](https://github.com/henry-hsieh/genlint/compare/v0.1.0...v0.2.0) (2025-08-08)
 
 
