@@ -1,4 +1,4 @@
-use annotate_snippets::{Annotation, Level};
+use annotate_snippets::{Annotation, AnnotationKind, Level};
 use unicode_width::UnicodeWidthChar;
 
 pub fn coord_to_pos(source: &str, source_lnum: usize, lnum: usize, col: usize) -> usize {
@@ -30,10 +30,9 @@ pub fn pos_to_annotation<'a>(
     pos: usize,
     end_pos: usize,
     label: Option<&'a str>,
-    severity: &str,
+    kind: AnnotationKind,
 ) -> Annotation<'a> {
-    let level = severity_to_level(severity);
-    let annotation = level.span(pos..end_pos + 1);
+    let annotation = kind.span(pos..end_pos + 1);
 
     if let Some(label_str) = label {
         return annotation.label(label_str);
@@ -42,12 +41,14 @@ pub fn pos_to_annotation<'a>(
     annotation
 }
 
-pub fn severity_to_level(severity: &str) -> Level {
+#[allow(dead_code)]
+pub fn severity_to_level(severity: &str) -> Level<'_> {
     match severity {
-        "error" => Level::Error,
-        "warning" => Level::Warning,
-        "information" => Level::Info,
-        "hint" => Level::Note,
+        "error" => Level::ERROR,
+        "warning" => Level::WARNING,
+        "information" => Level::INFO,
+        "hint" => Level::NOTE,
+        "help" => Level::HELP,
         _ => todo!("Unknown severity level: {}", severity),
     }
 }
