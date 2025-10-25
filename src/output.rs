@@ -1,12 +1,13 @@
 use crate::types::Diagnostic;
 use crate::util::{coord_to_pos, pos_to_annotation};
-use annotate_snippets::{Level, Renderer, Snippet};
+use annotate_snippets::renderer::DecorStyle;
+use annotate_snippets::{AnnotationKind, Group, Renderer, Snippet};
 use genlint::util::severity_to_level;
 use serde_partial::SerializePartial;
 use std::io::{BufWriter, Write};
 
 pub fn print_diagnostics_plain<W: Write>(writer: &mut BufWriter<W>, diagnostics: &[Diagnostic]) {
-    let renderer = Renderer::styled();
+    let mut report = Vec::new();
     for diag in diagnostics {
         let pos = coord_to_pos(&diag.source, diag.source_lnum, diag.lnum, diag.col);
         let end_pos = coord_to_pos(&diag.source, diag.source_lnum, diag.end_lnum, diag.end_col);
@@ -14,7 +15,7 @@ pub fn print_diagnostics_plain<W: Write>(writer: &mut BufWriter<W>, diagnostics:
             pos,
             end_pos,
             None,
-            diag.severity.as_str(),
+            AnnotationKind::Primary,
         )];
         if let Some(helpers) = &diag.helpers {
             for helper in helpers.iter() {
@@ -29,21 +30,28 @@ pub fn print_diagnostics_plain<W: Write>(writer: &mut BufWriter<W>, diagnostics:
                     pos,
                     end_pos,
                     Some(helper.message.as_str()),
-                    "information",
+                    AnnotationKind::Context,
                 ));
             }
         };
 
-        let level = severity_to_level(diag.severity.as_str());
-        let message = Level::title(level, &diag.message).snippet(
+        let message = Group::with_title(
+            severity_to_level(diag.severity.as_str())
+                .primary_title(&diag.message)
+                .id(diag.code.as_str()),
+        )
+        .element(
             Snippet::source(diag.source.as_str())
                 .line_start(diag.source_lnum + 1)
-                .origin(diag.file.as_str())
+                .path(diag.file.as_str())
                 .fold(true)
                 .annotations(annotations),
         );
-        writeln!(writer, "{}", renderer.render(message)).ok();
+
+        report.push(message)
     }
+    let renderer = Renderer::styled().decor_style(DecorStyle::Unicode);
+    let _ = writer.write_all(&renderer.render(&report).into_bytes());
 }
 
 pub fn print_diagnostics_json<W: Write>(writer: &mut BufWriter<W>, diagnostics: &[Diagnostic]) {
