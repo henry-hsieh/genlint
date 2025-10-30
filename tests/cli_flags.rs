@@ -1,15 +1,15 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 
 #[test]
 fn test_generate_completion() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["generate-completion", "bash"]).assert().success();
 }
 
 #[test]
 fn test_invalid_combination_long_line_and_max_length() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args([
         "--stdin",
         "--disable",
@@ -25,7 +25,7 @@ fn test_invalid_combination_long_line_and_max_length() {
 
 #[test]
 fn test_invalid_combination_blank_and_max_consecutive_blank() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args([
         "--stdin",
         "--disable",
@@ -41,7 +41,7 @@ fn test_invalid_combination_blank_and_max_consecutive_blank() {
 
 #[test]
 fn test_invalid_format_option() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin", "--format", "badformat"])
         .write_stdin("test_invalid_format_option")
         .assert()
@@ -53,7 +53,7 @@ fn test_invalid_format_option() {
 
 #[test]
 fn test_valid_input_file() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--input", "tests/data/trailing_spaces.txt"])
         .assert()
         .success()
@@ -62,7 +62,7 @@ fn test_valid_input_file() {
 
 #[test]
 fn test_invalid_input_file() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--input", "tests/data/non_exist.txt"])
         .assert()
         .success()
@@ -71,7 +71,7 @@ fn test_invalid_input_file() {
 
 #[test]
 fn test_disable_mix_indent() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--disable", "mix-indent", "--stdin"])
         .write_stdin("  \tMixed indentation line.\n")
         .assert()
@@ -81,7 +81,7 @@ fn test_disable_mix_indent() {
 
 #[test]
 fn test_mix_indent() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin"])
         .write_stdin("  \tMixed indentation line.\n")
         .assert()
@@ -91,7 +91,7 @@ fn test_mix_indent() {
 
 #[test]
 fn test_disable_trailing_space() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--disable", "trailing-space", "--stdin"])
         .write_stdin("Trailing whitespaces and tabs are here:  \t\t\n")
         .assert()
@@ -101,7 +101,7 @@ fn test_disable_trailing_space() {
 
 #[test]
 fn test_trailing_space() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin"])
         .write_stdin("Trailing whitespaces and tabs are here:  \t\t\n")
         .assert()
@@ -111,7 +111,7 @@ fn test_trailing_space() {
 
 #[test]
 fn test_disable_conflict_marker() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--disable", "conflict-marker", "--stdin"])
         .write_stdin("Here are\n<<<<<<< Head\nGit\n=======\nconflict\n>>>>>>> Remote\nmarkers\n")
         .assert()
@@ -121,7 +121,7 @@ fn test_disable_conflict_marker() {
 
 #[test]
 fn test_conflict_marker() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin"])
         .write_stdin("Here are\n<<<<<<< Head\nGit\n=======\nconflict\n>>>>>>> Remote\nmarkers\n")
         .assert()
@@ -131,7 +131,7 @@ fn test_conflict_marker() {
 
 #[test]
 fn test_disable_long_line() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--disable", "long-line", "--stdin"])
         .write_stdin(format!("This is a{} long line.\n", " very".repeat(30)))
         .assert()
@@ -141,7 +141,7 @@ fn test_disable_long_line() {
 
 #[test]
 fn test_long_line() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin"])
         .write_stdin(format!("This is a{} long line.\n", " very".repeat(30)))
         .assert()
@@ -151,7 +151,7 @@ fn test_long_line() {
 
 #[test]
 fn test_disable_control_char() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--disable", "control-char", "--stdin"])
         .write_stdin("Unexpected control character: \x15\n")
         .assert()
@@ -161,7 +161,7 @@ fn test_disable_control_char() {
 
 #[test]
 fn test_control_char() {
-    let mut cmd = Command::cargo_bin("genlint").unwrap();
+    let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin"])
         .write_stdin("Unexpected control character: \x15\n")
         .assert()
