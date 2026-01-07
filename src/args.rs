@@ -50,6 +50,16 @@ pub fn build_cli() -> Command {
                 .value_parser(value_parser!(usize))
                 .default_value("1"),
         )
+        .arg(
+            arg!(--"max-errors" <NUM> "Maximum number of errors to report (set to 0 to disable)")
+                .value_parser(value_parser!(usize))
+                .default_value("50"),
+        )
+        .arg(
+            arg!(--"max-warnings" <NUM> "Maximum number of warnings to report (set to 0 to disable)")
+                .value_parser(value_parser!(usize))
+                .default_value("50"),
+        )
         .subcommand(
             Command::new("generate-completion")
                 .about("Generate shell completions")
