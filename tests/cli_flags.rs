@@ -168,3 +168,51 @@ fn test_control_char() {
         .success()
         .stdout(contains("Line contains a control character").count(1));
 }
+
+#[test]
+fn test_max_errors() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-errors", "2"])
+        .write_stdin("<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n<<<<<<< HEAD\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>>\n<<<<<<< HEAD\nlet z = 5;\n=======\nlet z = 6;\n>>>>>>>\nline  \nline  \n")
+        .assert()
+        .success()
+        .stdout(contains("Git conflict marker").count(2))
+        .stdout(contains("Trailing whitespaces or tabs").count(0))
+        .stderr(contains("found 2 errors, please fix the errors or increase the --max-errors limit"));
+}
+
+#[test]
+fn test_max_warnings() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-warnings", "2"])
+        .write_stdin("line1  \nline2  \nline3  \n<<<<<<< HEAD\nerror\n=======\n")
+        .assert()
+        .success()
+        .stdout(contains("Trailing whitespaces or tabs").count(2))
+        .stdout(contains("Git conflict marker").count(2))
+        .stderr(contains(
+            "found 2 warnings, please fix the warnings or increase the --max-warnings limit",
+        ));
+}
+
+#[test]
+fn test_max_errors_zero() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-errors", "0"])
+        .write_stdin("<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n<<<<<<< HEAD\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>>\n")
+        .assert()
+        .success()
+        .stdout(contains("Git conflict marker").count(6))
+        .stderr(contains("found").count(0));
+}
+
+#[test]
+fn test_max_warnings_zero() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-warnings", "0"])
+        .write_stdin("line1  \nline2  \nline3  \nline4  \nline5  \n")
+        .assert()
+        .success()
+        .stdout(contains("Trailing whitespaces or tabs").count(5))
+        .stderr(contains("found").count(0));
+}

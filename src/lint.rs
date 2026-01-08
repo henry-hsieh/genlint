@@ -2,13 +2,75 @@ use std::cmp::max;
 use std::io::BufRead;
 use unicode_width::UnicodeWidthStr;
 
-use crate::types::{Diagnostic, DisableCheck::*, Helper, LintOptions};
+use crate::types::{Diagnostic, DisableCheck::*, Helper, LintOptions, LintRunner};
 use crate::util::{byte_col_at_visual_width, find_non_space_col};
+
+fn handle_diagnostic_limit<F>(
+    diagnostics: &mut Vec<Diagnostic>,
+    diag: Diagnostic,
+    max_limit: usize,
+    count: &mut usize,
+    has_printed_flag: &mut bool,
+    message_fn: F,
+) -> bool
+where
+    F: FnOnce() -> String,
+{
+    if max_limit == 0 || *count < max_limit {
+        diagnostics.push(diag);
+        *count += 1;
+        if max_limit > 0 && *count == max_limit && !*has_printed_flag {
+            eprintln!("{}", message_fn());
+            *has_printed_flag = true;
+        }
+        true
+    } else {
+        false
+    }
+}
+
+fn add_diagnostic(runner: &mut LintRunner, opts: &LintOptions, diag: Diagnostic) -> bool {
+    match diag.severity.as_str() {
+        "error" => handle_diagnostic_limit(
+            &mut runner.diagnostics,
+            diag,
+            opts.max_errors,
+            &mut runner.error_count,
+            &mut runner.has_printed_error_limit,
+            || {
+                format!(
+                    "found {} errors, please fix the errors or increase the --max-errors limit",
+                    opts.max_errors
+                )
+            },
+        ),
+        "warning" => {
+            let _ = handle_diagnostic_limit(
+                &mut runner.diagnostics,
+                diag,
+                opts.max_warnings,
+                &mut runner.warning_count,
+                &mut runner.has_printed_warning_limit,
+                || {
+                    format!(
+                        "found {} warnings, please fix the warnings or increase the --max-warnings limit",
+                        opts.max_warnings
+                    )
+                },
+            );
+            true
+        }
+        _ => {
+            runner.diagnostics.push(diag);
+            true
+        }
+    }
+}
 
 pub fn lint_lines<R: BufRead>(
     filename: &str,
     mut reader: R,
-    diagnostics: &mut Vec<Diagnostic>,
+    runner: &mut LintRunner,
     opts: &LintOptions,
 ) {
     let mut lines = Vec::new();
@@ -55,7 +117,7 @@ pub fn lint_lines<R: BufRead>(
                     space_col * 4 - 1
                 },
             };
-            diagnostics.push(Diagnostic {
+            let diag = Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,
@@ -75,13 +137,14 @@ pub fn lint_lines<R: BufRead>(
                 code: "mix-indent".to_string(),
                 message: "Mixed tabs and whitespaces".to_string(),
                 helpers: Some(vec![helper]),
-            });
+            };
+            let _ = add_diagnostic(runner, opts, diag);
         }
 
         if !opts.disables.contains(&TrailingSpace) {
             let trimmed_trailing_space = trimmed_retab.trim_end_matches(['\r', '\n', ' ', '\t']);
             if trimmed_retab.len() > trimmed_trailing_space.len() {
-                diagnostics.push(Diagnostic {
+                let diag = Diagnostic {
                     file: filename.to_string(),
                     lnum,
                     end_lnum: lnum,
@@ -93,7 +156,8 @@ pub fn lint_lines<R: BufRead>(
                     code: "trailing-space".into(),
                     message: "Trailing whitespaces or tabs".into(),
                     helpers: None,
-                });
+                };
+                let _ = add_diagnostic(runner, opts, diag);
             }
         }
 
@@ -102,7 +166,7 @@ pub fn lint_lines<R: BufRead>(
                 || trimmed.starts_with("=======")
                 || trimmed.starts_with(">>>>>>>"))
         {
-            diagnostics.push(Diagnostic {
+            let diag = Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,
@@ -114,14 +178,17 @@ pub fn lint_lines<R: BufRead>(
                 code: "conflict-marker".into(),
                 message: format!("Git conflict marker: {trimmed}"),
                 helpers: None,
-            });
+            };
+            if !add_diagnostic(runner, opts, diag) {
+                return;
+            }
         }
 
         if !opts.disables.contains(&LongLine)
             && let limit = byte_col_at_visual_width(&line_retab, opts.line_length)
             && eol_col > limit
         {
-            diagnostics.push(Diagnostic {
+            runner.diagnostics.push(Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,
@@ -143,7 +210,7 @@ pub fn lint_lines<R: BufRead>(
         if !opts.disables.contains(&ControlChar) {
             for (index, c) in trimmed.chars().enumerate() {
                 if c.is_control() && c != '\t' {
-                    diagnostics.push(Diagnostic {
+                    let diag = Diagnostic {
                         file: filename.to_string(),
                         lnum,
                         end_lnum: lnum,
@@ -155,7 +222,8 @@ pub fn lint_lines<R: BufRead>(
                         code: "control-char".into(),
                         message: "Line contains a control character".into(),
                         helpers: None,
-                    });
+                    };
+                    let _ = add_diagnostic(runner, opts, diag);
                 }
             }
         }
@@ -180,7 +248,7 @@ pub fn lint_lines<R: BufRead>(
                         col: 0,
                         end_col: trimmed.len() - 1,
                     });
-                    diagnostics.push(Diagnostic {
+                    runner.diagnostics.push(Diagnostic {
                         file: filename.to_string(),
                         lnum: max(0, non_blank_lnum + 1) as usize,
                         end_lnum: lnum - 1,
@@ -222,7 +290,7 @@ pub fn lint_lines<R: BufRead>(
                 col: 0,
                 end_col: non_blank_lines.clone().replace("\n", "").len() - 1,
             };
-            diagnostics.push(Diagnostic {
+            runner.diagnostics.push(Diagnostic {
                 file: filename.to_string(),
                 lnum: max(0, non_blank_lnum + 1) as usize,
                 end_lnum: lnum,
@@ -243,7 +311,7 @@ pub fn lint_lines<R: BufRead>(
 
         if !opts.disables.contains(&FinalNewline) && !line.ends_with('\n') && !line.ends_with('\r')
         {
-            diagnostics.push(Diagnostic {
+            runner.diagnostics.push(Diagnostic {
                 file: filename.to_string(),
                 lnum,
                 end_lnum: lnum,

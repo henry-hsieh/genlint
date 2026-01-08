@@ -1,13 +1,19 @@
 use genlint::lint::lint_lines;
-use genlint::types::{Diagnostic, LintOptions};
+use genlint::types::{Diagnostic, LintOptions, LintRunner};
 use genlint::util::coord_to_pos;
 use std::io::Cursor;
 
 fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
-    let mut diags = Vec::new();
+    let mut runner = LintRunner {
+        diagnostics: Vec::new(),
+        error_count: 0,
+        warning_count: 0,
+        has_printed_error_limit: false,
+        has_printed_warning_limit: false,
+    };
     let reader = Cursor::new(input);
-    lint_lines("<stdin>", reader, &mut diags, opts);
-    diags
+    lint_lines("<stdin>", reader, &mut runner, opts);
+    runner.diagnostics
 }
 
 #[test]
@@ -17,6 +23,8 @@ fn detects_mixed_indentation_tab() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);
@@ -36,6 +44,8 @@ fn detects_mixed_indentation_space() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);
@@ -55,6 +65,8 @@ fn detects_trailing_space() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);
@@ -74,6 +86,8 @@ fn detects_conflict_markers() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src, &opts);
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
@@ -105,6 +119,8 @@ fn detects_long_line() {
         disables: Vec::new(),
         line_length: 50,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src.as_str(), &opts);
     assert_eq!(diags.len(), 1);
@@ -125,6 +141,8 @@ fn detects_control_char() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src.as_str(), &opts);
     assert_eq!(diags.len(), 1);
@@ -149,6 +167,8 @@ fn detects_consecutive_blank() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 2,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src.as_str(), &opts);
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
@@ -200,6 +220,8 @@ fn detects_cjk_trailing_space() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);
@@ -220,6 +242,8 @@ fn detects_cjk_long_line() {
         disables: Vec::new(),
         line_length: 120,
         consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
     };
     let diags = run_lint(src.as_str(), &opts);
     assert_eq!(diags.len(), 1);

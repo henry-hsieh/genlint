@@ -15,7 +15,7 @@ use crate::output::{print_diagnostics_json, print_diagnostics_jsonl, print_diagn
 use crate::types::{
     DisableCheck,
     DisableCheck::{ConsecutiveBlank, LongLine},
-    Format, LintOptions,
+    Format, LintOptions, LintRunner,
 };
 
 fn main() {
@@ -54,18 +54,28 @@ fn main() {
 
     let max_line_length = *matches.get_one::<usize>("max-line-length").unwrap();
     let max_consecutive_blank = *matches.get_one::<usize>("max-consecutive-blank").unwrap();
+    let max_errors = *matches.get_one::<usize>("max-errors").unwrap();
+    let max_warnings = *matches.get_one::<usize>("max-warnings").unwrap();
     let lint_opts = LintOptions {
         disables,
         line_length: max_line_length,
         consecutive_blank: max_consecutive_blank,
+        max_errors,
+        max_warnings,
     };
 
-    let mut diagnostics = Vec::new();
+    let mut runner = LintRunner {
+        diagnostics: Vec::new(),
+        error_count: 0,
+        warning_count: 0,
+        has_printed_error_limit: false,
+        has_printed_warning_limit: false,
+    };
 
     if matches.get_flag("stdin") {
         let stdin = io::stdin().lock();
         let reader = BufReader::new(stdin);
-        lint_lines("<stdin>", reader, &mut diagnostics, &lint_opts);
+        lint_lines("<stdin>", reader, &mut runner, &lint_opts);
     }
 
     if let Some(inputs) = matches.get_many::<String>("input") {
@@ -77,18 +87,24 @@ fn main() {
                     lint_lines(
                         path.to_string_lossy().as_ref(),
                         reader,
-                        &mut diagnostics,
+                        &mut runner,
                         &lint_opts,
                     );
+                    if lint_opts.max_errors > 0 && runner.error_count >= lint_opts.max_errors {
+                        break;
+                    }
                 }
+            }
+            if lint_opts.max_errors > 0 && runner.error_count >= lint_opts.max_errors {
+                break;
             }
         }
     }
 
     let mut writer = BufWriter::new(std::io::stdout());
     match matches.get_one::<Format>("format") {
-        Some(Format::Plain) | None => print_diagnostics_plain(&mut writer, &diagnostics),
-        Some(Format::Json) => print_diagnostics_json(&mut writer, &diagnostics),
-        Some(Format::Jsonl) => print_diagnostics_jsonl(&mut writer, &diagnostics),
+        Some(Format::Plain) | None => print_diagnostics_plain(&mut writer, &runner.diagnostics),
+        Some(Format::Json) => print_diagnostics_json(&mut writer, &runner.diagnostics),
+        Some(Format::Jsonl) => print_diagnostics_jsonl(&mut writer, &runner.diagnostics),
     }
 }

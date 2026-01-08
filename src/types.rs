@@ -25,6 +25,17 @@ pub struct LintOptions {
     pub disables: Vec<DisableCheck>,
     pub line_length: usize,
     pub consecutive_blank: usize,
+    pub max_errors: usize,
+    pub max_warnings: usize,
+}
+
+#[derive(Debug)]
+pub struct LintRunner {
+    pub diagnostics: Vec<Diagnostic>,
+    pub error_count: usize,
+    pub warning_count: usize,
+    pub has_printed_error_limit: bool,
+    pub has_printed_warning_limit: bool,
 }
 
 #[derive(Debug, Serialize)]
