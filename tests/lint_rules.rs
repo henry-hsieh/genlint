@@ -1,7 +1,18 @@
 use genlint::lint::lint_lines;
 use genlint::types::{Diagnostic, LintOptions, LintRunner};
-use genlint::util::coord_to_pos;
+use genlint::util::{coord_to_pos, decorate_line};
 use std::io::Cursor;
+
+fn default_opts() -> LintOptions {
+    LintOptions {
+        disables: Vec::new(),
+        line_length: 120,
+        consecutive_blank: 1,
+        max_errors: 0,
+        max_warnings: 0,
+        text_mode: false,
+    }
+}
 
 fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
     let mut runner = LintRunner {
@@ -19,14 +30,7 @@ fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
 #[test]
 fn detects_mixed_indentation_tab() {
     let src = "\t  let x = 5;\n";
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src, &opts);
+    let diags = run_lint(src, &default_opts());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
@@ -40,14 +44,7 @@ fn detects_mixed_indentation_tab() {
 #[test]
 fn detects_mixed_indentation_space() {
     let src = "  \tlet x = 5;\n";
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src, &opts);
+    let diags = run_lint(src, &default_opts());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
@@ -61,14 +58,7 @@ fn detects_mixed_indentation_space() {
 #[test]
 fn detects_trailing_space() {
     let src = "let x = 5;  \nlet y = 10;\n";
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src, &opts);
+    let diags = run_lint(src, &default_opts());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
@@ -82,14 +72,7 @@ fn detects_trailing_space() {
 #[test]
 fn detects_conflict_markers() {
     let src = "<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n";
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src, &opts);
+    let diags = run_lint(src, &default_opts());
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
     let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
     let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
@@ -116,11 +99,8 @@ fn detects_long_line() {
     let err_str = format!("let z = \"{:075}\";\n", 150);
     let src = format!("let x = 5;\nlet y = 10;\n{err_str}");
     let opts = LintOptions {
-        disables: Vec::new(),
         line_length: 50,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
+        ..default_opts()
     };
     let diags = run_lint(src.as_str(), &opts);
     assert_eq!(diags.len(), 1);
@@ -134,25 +114,32 @@ fn detects_long_line() {
 }
 
 #[test]
-fn detects_control_char() {
-    let err_str = "  let z = \"abc\x01\"\n";
-    let src = format!("let x = 5;\nlet y = 10;\n{err_str}");
+fn skips_binary_file() {
+    let src = "let x = 5;\0\nlet y = 10;\n";
+    let diags = run_lint(src, &default_opts());
+    assert_eq!(diags.len(), 0);
+}
+
+#[test]
+fn processes_binary_in_text_mode() {
+    let src = "let x = 5;\0 \nlet y = 10;\n";
     let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
+        text_mode: true,
+        ..default_opts()
     };
-    let diags = run_lint(src.as_str(), &opts);
+    let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);
-    assert_eq!(diags[0].lnum, 2);
-    assert_eq!(diags[0].end_lnum, 2);
-    assert_eq!(diags[0].col, 14);
-    assert_eq!(diags[0].end_col, 14);
-    assert_eq!(diags[0].source, err_str);
-    assert_eq!(diags[0].source_lnum, 2);
-    assert_eq!(diags[0].code, "control-char");
+    let diag = &diags[0];
+    assert_eq!(diag.code, "trailing-space");
+    assert_eq!(diag.source, "let x = 5;. \n");
+}
+
+#[test]
+fn decorate_line_utility() {
+    assert_eq!(decorate_line("abc\x01def\t\n\r"), "abc.def    \n\r");
+    assert_eq!(decorate_line("normal text"), "normal text");
+    assert_eq!(decorate_line("\tfoo"), "    foo");
+    assert_eq!(decorate_line("bar\t\t"), "bar        ");
 }
 
 #[test]
@@ -164,11 +151,8 @@ fn detects_consecutive_blank() {
     ];
     let src = err_str.join("");
     let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
         consecutive_blank: 2,
-        max_errors: 0,
-        max_warnings: 0,
+        ..default_opts()
     };
     let diags = run_lint(src.as_str(), &opts);
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
@@ -216,14 +200,7 @@ fn detects_consecutive_blank() {
 #[test]
 fn detects_cjk_trailing_space() {
     let src = "let x = \"\t中文\";  \nlet y = 10;\n";
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src, &opts);
+    let diags = run_lint(src, &default_opts());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
@@ -238,14 +215,7 @@ fn detects_cjk_trailing_space() {
 fn detects_cjk_long_line() {
     let err_str = format!("let z = \"{}\";\n", "中文".repeat(30));
     let src = format!("let x = 5;\nlet y = 10;\n{err_str}");
-    let opts = LintOptions {
-        disables: Vec::new(),
-        line_length: 120,
-        consecutive_blank: 1,
-        max_errors: 0,
-        max_warnings: 0,
-    };
-    let diags = run_lint(src.as_str(), &opts);
+    let diags = run_lint(src.as_str(), &default_opts());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 2);
     assert_eq!(diags[0].end_lnum, 2);

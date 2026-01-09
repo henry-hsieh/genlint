@@ -3,7 +3,7 @@ use std::io::BufRead;
 use unicode_width::UnicodeWidthStr;
 
 use crate::types::{Diagnostic, DisableCheck::*, Helper, LintOptions, LintRunner};
-use crate::util::{byte_col_at_visual_width, find_non_space_col};
+use crate::util::{byte_col_at_visual_width, decorate_line, find_non_space_col};
 
 fn handle_diagnostic_limit<F>(
     diagnostics: &mut Vec<Diagnostic>,
@@ -73,6 +73,23 @@ pub fn lint_lines<R: BufRead>(
     runner: &mut LintRunner,
     opts: &LintOptions,
 ) {
+    // Check for binary content by peeking at the first 8KB, unless in text mode
+    if !opts.text_mode {
+        match reader.fill_buf() {
+            Ok(peeked) if peeked.contains(&0) => {
+                eprintln!(
+                    "Binary file detected in '{}', skipping processing.",
+                    filename
+                );
+                return;
+            }
+            Err(e) => {
+                eprintln!("Error reading '{}': {}. Skipping.", filename, e);
+                return;
+            }
+            _ => {}
+        }
+    }
     let mut lines = Vec::new();
     let mut buffer = String::new();
     while let Ok(bytes_read) = reader.read_line(&mut buffer) {
@@ -90,7 +107,7 @@ pub fn lint_lines<R: BufRead>(
         let trimmed = line.trim_end_matches(['\r', '\n']).to_string();
         let trimmed_retab = trimmed.replace('\t', "    ");
         let eol_col = max(trimmed_retab.len(), 1) - 1;
-        let line_retab = line.replace('\t', "    ");
+        let decorated_line = decorate_line(line);
 
         if !opts.disables.contains(&MixIndent)
             && let Some(non_space_col) = find_non_space_col(&trimmed)
@@ -132,7 +149,7 @@ pub fn lint_lines<R: BufRead>(
                     space_col * 4
                 },
                 severity: "warning".into(),
-                source: line_retab.clone(),
+                source: decorated_line.clone(),
                 source_lnum: lnum,
                 code: "mix-indent".to_string(),
                 message: "Mixed tabs and whitespaces".to_string(),
@@ -151,7 +168,7 @@ pub fn lint_lines<R: BufRead>(
                     col: trimmed_trailing_space.len(),
                     end_col: eol_col,
                     severity: "warning".into(),
-                    source: line_retab.clone(),
+                    source: decorated_line.clone(),
                     source_lnum: lnum,
                     code: "trailing-space".into(),
                     message: "Trailing whitespaces or tabs".into(),
@@ -173,7 +190,7 @@ pub fn lint_lines<R: BufRead>(
                 col: 0,
                 end_col: eol_col,
                 severity: "error".into(),
-                source: line_retab.clone(),
+                source: decorated_line.clone(),
                 source_lnum: lnum,
                 code: "conflict-marker".into(),
                 message: format!("Git conflict marker: {trimmed}"),
@@ -185,7 +202,7 @@ pub fn lint_lines<R: BufRead>(
         }
 
         if !opts.disables.contains(&LongLine)
-            && let limit = byte_col_at_visual_width(&line_retab, opts.line_length)
+            && let limit = byte_col_at_visual_width(&decorated_line, opts.line_length)
             && eol_col > limit
         {
             runner.diagnostics.push(Diagnostic {
@@ -195,7 +212,7 @@ pub fn lint_lines<R: BufRead>(
                 col: limit,
                 end_col: eol_col,
                 severity: "information".into(),
-                source: line_retab.clone(),
+                source: decorated_line.clone(),
                 source_lnum: lnum,
                 code: "long-line".into(),
                 message: format!(
@@ -205,27 +222,6 @@ pub fn lint_lines<R: BufRead>(
                 ),
                 helpers: None,
             });
-        }
-
-        if !opts.disables.contains(&ControlChar) {
-            for (index, c) in trimmed.chars().enumerate() {
-                if c.is_control() && c != '\t' {
-                    let diag = Diagnostic {
-                        file: filename.to_string(),
-                        lnum,
-                        end_lnum: lnum,
-                        col: index,
-                        end_col: index,
-                        severity: "warning".into(),
-                        source: line_retab.clone(),
-                        source_lnum: lnum,
-                        code: "control-char".into(),
-                        message: "Line contains a control character".into(),
-                        helpers: None,
-                    };
-                    let _ = add_diagnostic(runner, opts, diag);
-                }
-            }
         }
 
         if !opts.disables.contains(&ConsecutiveBlank) {
@@ -255,9 +251,9 @@ pub fn lint_lines<R: BufRead>(
                         col: 0,
                         end_col: 0,
                         severity: "information".into(),
-                        source: format!("{non_blank_lines}{line_retab}"),
+                        source: format!("{non_blank_lines}{decorated_line}"),
                         source_lnum: max(0, non_blank_lnum) as usize,
-                        code: "consecutive-blank".into(),
+                        code: "consecutive-blank".to_string(),
                         message: format!(
                             "Too many consecutive blank lines ({}/{})",
                             (lnum as isize) - non_blank_lnum - 1,
@@ -267,9 +263,9 @@ pub fn lint_lines<R: BufRead>(
                     });
                 }
                 non_blank_lnum = lnum as isize;
-                non_blank_lines = line_retab.clone();
+                non_blank_lines = decorated_line.clone();
             } else {
-                non_blank_lines = format!("{non_blank_lines}{line_retab}");
+                non_blank_lines.push_str(&decorated_line);
             }
         }
     }
@@ -277,7 +273,7 @@ pub fn lint_lines<R: BufRead>(
         let lnum = lines.len() - 1;
         let col = line.len() - 1;
         let trimmed = line.trim_end_matches(['\r', '\n']);
-        let line_retab = line.replace('\t', " ");
+        let decorated_line = decorate_line(line);
 
         if !opts.disables.contains(&ConsecutiveBlank)
             && trimmed.is_empty()
@@ -318,7 +314,7 @@ pub fn lint_lines<R: BufRead>(
                 col,
                 end_col: col,
                 severity: "information".into(),
-                source: line_retab.clone(),
+                source: decorated_line.clone(),
                 source_lnum: lnum,
                 code: "final-newline".to_string(),
                 message: "Missing final newline".to_string(),

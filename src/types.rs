@@ -15,7 +15,6 @@ pub enum DisableCheck {
     TrailingSpace,
     ConflictMarker,
     LongLine,
-    ControlChar,
     ConsecutiveBlank,
     FinalNewline,
 }
@@ -27,6 +26,7 @@ pub struct LintOptions {
     pub consecutive_blank: usize,
     pub max_errors: usize,
     pub max_warnings: usize,
+    pub text_mode: bool,
 }
 
 #[derive(Debug)]

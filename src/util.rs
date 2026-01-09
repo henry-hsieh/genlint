@@ -74,3 +74,15 @@ pub fn byte_col_at_visual_width(line: &str, width: usize) -> usize {
 
     last_index
 }
+
+pub fn decorate_line(line: &str) -> String {
+    let mut s = String::with_capacity(line.len() + line.matches('\t').count() * 3);
+    for c in line.chars() {
+        match c {
+            '\t' => s.push_str("    "),
+            c if c.is_control() && !matches!(c, '\n' | '\r') => s.push('.'),
+            _ => s.push(c),
+        }
+    }
+    s
+}
