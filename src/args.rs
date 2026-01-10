@@ -55,14 +55,19 @@ pub fn build_cli() -> Command {
                 .default_value("1"),
         )
         .arg(
-            arg!(--"max-errors" <NUM> "Maximum number of errors to report (set to 0 to disable)")
+            arg!(--"max-errors" <NUM> "Maximum number of errors to report (set to 0 for no limit)")
                 .value_parser(value_parser!(usize))
                 .default_value("50"),
         )
         .arg(
-            arg!(--"max-warnings" <NUM> "Maximum number of warnings to report (set to 0 to disable)")
+            arg!(--"max-warnings" <NUM> "Maximum number of warnings to report (set to 0 for no limit)")
                 .value_parser(value_parser!(usize))
                 .default_value("50"),
+        )
+        .arg(
+            arg!(--"max-info" <NUM> "Maximum number of information to report (set to 0 for no limit)")
+                .value_parser(value_parser!(usize))
+                .default_value("0"),
         )
         .subcommand(
             Command::new("generate-completion")

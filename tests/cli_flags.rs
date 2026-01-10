@@ -67,7 +67,7 @@ fn test_invalid_input_file() {
     cmd.args(["--input", "tests/data/non_exist.txt"])
         .assert()
         .success()
-        .stdout(contains(" ").count(0));
+        .stderr(contains("Found 0 errors, 0 warnings, 0 information"));
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_max_errors() {
         .success()
         .stdout(contains("Git conflict marker").count(2))
         .stdout(contains("Trailing whitespaces or tabs").count(0))
-        .stderr(contains("found 2 errors, please fix the errors or increase the --max-errors limit"));
+        .stderr(contains("Found 2 errors (limit reached), 0 warnings, 0 information").and(contains("found 2 errors, please fix the errors or increase the --max-errors limit")));
 }
 
 #[test]
@@ -174,6 +174,26 @@ fn test_max_warnings() {
         .stderr(contains(
             "found 2 warnings, please fix the warnings or increase the --max-warnings limit",
         ));
+}
+
+#[test]
+fn test_max_information() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-info", "2"])
+        .write_stdin(format!(
+            "This is a{} long line.\nThis is another{} long line.\nThis is a third{} long line.\n",
+            " very".repeat(30),
+            " very".repeat(30),
+            " very".repeat(30)
+        ))
+        .assert()
+        .success()
+        .stdout(contains("Too long line").count(2))
+        .stderr(
+            contains("Found 0 errors, 0 warnings, 2 information (limit reached)").and(contains(
+                "found 2 information, please review or increase the --max-info limit",
+            )),
+        );
 }
 
 #[test]
@@ -199,13 +219,31 @@ fn test_max_warnings_zero() {
 }
 
 #[test]
+fn test_max_information_zero() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin", "--max-info", "0"])
+        .write_stdin(format!(
+            "This is a{} long line.\nThis is another{} long line.\n",
+            " very".repeat(30),
+            " very".repeat(30)
+        ))
+        .assert()
+        .success()
+        .stdout(contains("Too long line").count(2))
+        .stderr(contains("found").count(0));
+}
+
+#[test]
 fn test_binary_file_detection() {
     let mut cmd = cargo_bin_cmd!();
     cmd.args(["--input", "tests/data/binary_file.bin"])
         .assert()
         .success()
-        .stdout("")
-        .stderr(contains("Binary file detected in").and(contains("skipping processing.")));
+        .stderr(
+            contains("Found 0 errors, 0 warnings, 0 information")
+                .and(contains("Binary file detected in"))
+                .and(contains("skipping processing.")),
+        );
 }
 
 #[test]
@@ -215,10 +253,11 @@ fn test_binary_stdin_detection() {
         .write_stdin("binary\x00data\n")
         .assert()
         .success()
-        .stdout("")
-        .stderr(contains(
-            "Binary file detected in '<stdin>', skipping processing.",
-        ));
+        .stderr(
+            contains("Found 0 errors, 0 warnings, 0 information").and(contains(
+                "Binary file detected in '<stdin>', skipping processing.",
+            )),
+        );
 }
 
 #[test]
@@ -229,5 +268,5 @@ fn test_text_mode_processes_binary() {
         .assert()
         .success()
         .stdout(contains("Trailing whitespaces or tabs"))
-        .stderr("");
+        .stderr(contains("Found 0 errors, 1 warnings, 0 information"));
 }
