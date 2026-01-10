@@ -15,15 +15,105 @@ _genlint() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
+'-i+[Input file(s) to lint]:FILES:_default' \
+'--input=[Input file(s) to lint]:FILES:_default' \
+'-e+[Glob patterns to exclude]:PATTERNS:_default' \
+'--exclude=[Glob patterns to exclude]:PATTERNS:_default' \
+'-f+[Output format]:FORMAT:(json jsonl plain)' \
+'--format=[Output format]:FORMAT:(json jsonl plain)' \
+'-o+[Output file path]:FILE:_files' \
+'--output=[Output file path]:FILE:_files' \
+'-d+[Disable specific checks]:CHECKS:(mix-indent trailing-space conflict-marker long-line consecutive-blank final-newline)' \
+'--disable=[Disable specific checks]:CHECKS:(mix-indent trailing-space conflict-marker long-line consecutive-blank final-newline)' \
+'-l+[Maximum allowed line length]:NUM:_default' \
+'--max-line-length=[Maximum allowed line length]:NUM:_default' \
+'-c+[Maximum allowed consecutive blank lines]:NUM:_default' \
+'--max-consecutive-blank=[Maximum allowed consecutive blank lines]:NUM:_default' \
+'--max-errors=[Maximum number of errors to report (set to 0 to disable)]:NUM:_default' \
+'--max-warnings=[Maximum number of warnings to report (set to 0 to disable)]:NUM:_default' \
+'(-i --input -e --exclude)-s[Read input from stdin]' \
+'(-i --input -e --exclude)--stdin[Read input from stdin]' \
+'-a[Treat all input as text, bypassing binary detection]' \
+'--text[Treat all input as text, bypassing binary detection]' \
 '-h[Print help]' \
 '--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_genlint_commands" \
+"*::: :->genlint" \
 && ret=0
+    case $state in
+    (genlint)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:genlint-command-$line[1]:"
+        case $line[1] in
+            (generate-completion)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell -- Shell type (bash, zsh, fish, and powershell.):(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_genlint__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:genlint-help-command-$line[1]:"
+        case $line[1] in
+            (generate-completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 }
 
 (( $+functions[_genlint_commands] )) ||
 _genlint_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'generate-completion:Generate shell completions' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'genlint commands' commands "$@"
+}
+(( $+functions[_genlint__generate-completion_commands] )) ||
+_genlint__generate-completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'genlint generate-completion commands' commands "$@"
+}
+(( $+functions[_genlint__help_commands] )) ||
+_genlint__help_commands() {
+    local commands; commands=(
+'generate-completion:Generate shell completions' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'genlint help commands' commands "$@"
+}
+(( $+functions[_genlint__help__generate-completion_commands] )) ||
+_genlint__help__generate-completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'genlint help generate-completion commands' commands "$@"
+}
+(( $+functions[_genlint__help__help_commands] )) ||
+_genlint__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'genlint help help commands' commands "$@"
 }
 
 if [ "$funcstack[1]" = "_genlint" ]; then
