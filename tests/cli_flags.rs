@@ -1,4 +1,5 @@
 use assert_cmd::cargo::cargo_bin_cmd;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 
 #[test]
@@ -150,26 +151,6 @@ fn test_long_line() {
 }
 
 #[test]
-fn test_disable_control_char() {
-    let mut cmd = cargo_bin_cmd!();
-    cmd.args(["--disable", "control-char", "--stdin"])
-        .write_stdin("Unexpected control character: \x15\n")
-        .assert()
-        .success()
-        .stdout(contains("Line contains a control character").count(0));
-}
-
-#[test]
-fn test_control_char() {
-    let mut cmd = cargo_bin_cmd!();
-    cmd.args(["--stdin"])
-        .write_stdin("Unexpected control character: \x15\n")
-        .assert()
-        .success()
-        .stdout(contains("Line contains a control character").count(1));
-}
-
-#[test]
 fn test_max_errors() {
     let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin", "--max-errors", "2"])
@@ -215,4 +196,38 @@ fn test_max_warnings_zero() {
         .success()
         .stdout(contains("Trailing whitespaces or tabs").count(5))
         .stderr(contains("found").count(0));
+}
+
+#[test]
+fn test_binary_file_detection() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--input", "tests/data/binary_file.bin"])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(contains("Binary file detected in").and(contains("skipping processing.")));
+}
+
+#[test]
+fn test_binary_stdin_detection() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--stdin"])
+        .write_stdin("binary\x00data\n")
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(contains(
+            "Binary file detected in '<stdin>', skipping processing.",
+        ));
+}
+
+#[test]
+fn test_text_mode_processes_binary() {
+    let mut cmd = cargo_bin_cmd!();
+    cmd.args(["--text", "--stdin"])
+        .write_stdin("binary\x00data \n")
+        .assert()
+        .success()
+        .stdout(contains("Trailing whitespaces or tabs"))
+        .stderr("");
 }

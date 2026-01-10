@@ -41,6 +41,10 @@ pub fn build_cli() -> Command {
                 .value_parser(value_parser!(DisableCheck)),
         )
         .arg(
+            arg!(-a --"text" "Treat all input as text, bypassing binary detection")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
             arg!(-l --"max-line-length" <NUM> "Maximum allowed line length")
                 .value_parser(value_parser!(usize))
                 .default_value("120"),

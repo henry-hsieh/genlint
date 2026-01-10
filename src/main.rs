@@ -56,12 +56,14 @@ fn main() {
     let max_consecutive_blank = *matches.get_one::<usize>("max-consecutive-blank").unwrap();
     let max_errors = *matches.get_one::<usize>("max-errors").unwrap();
     let max_warnings = *matches.get_one::<usize>("max-warnings").unwrap();
+    let text_mode = matches.get_flag("text");
     let lint_opts = LintOptions {
         disables,
         line_length: max_line_length,
         consecutive_blank: max_consecutive_blank,
         max_errors,
         max_warnings,
+        text_mode,
     };
 
     let mut runner = LintRunner {
