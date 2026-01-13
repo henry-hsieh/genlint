@@ -7,7 +7,9 @@ mod util;
 use clap_complete::{Shell, generate};
 use glob::glob;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter};
+use std::io::{self, BufReader, BufWriter, Write};
+
+use crate::types::DiagnosticType;
 
 use crate::args::build_cli;
 use crate::lint::lint_lines;
@@ -17,6 +19,36 @@ use crate::types::{
     DisableCheck::{ConsecutiveBlank, LongLine},
     Format, LintOptions, LintRunner,
 };
+
+const SMALL_FILE_THRESHOLD: u64 = 1024 * 1024;
+const SMALL_BUFFER_SIZE: usize = 64 * 1024;
+const LARGE_BUFFER_SIZE: usize = 256 * 1024;
+
+fn buffer_size_for_file(path: &std::path::Path) -> usize {
+    match path.metadata() {
+        Ok(metadata) => {
+            if metadata.len() < SMALL_FILE_THRESHOLD {
+                SMALL_BUFFER_SIZE
+            } else {
+                LARGE_BUFFER_SIZE
+            }
+        }
+        Err(_) => SMALL_BUFFER_SIZE,
+    }
+}
+
+fn print_diagnostics<W: Write>(
+    matches: &clap::ArgMatches,
+    runner: &LintRunner,
+    writer: &mut BufWriter<W>,
+) {
+    match matches.get_one::<Format>("format") {
+        Some(Format::Plain) | None => print_diagnostics_plain(writer, &runner.diagnostics),
+        Some(Format::Json) => print_diagnostics_json(writer, &runner.diagnostics),
+        Some(Format::Jsonl) => print_diagnostics_jsonl(writer, &runner.diagnostics),
+    }
+    writer.flush().unwrap();
+}
 
 fn main() {
     let cmd = build_cli();
@@ -56,6 +88,7 @@ fn main() {
     let max_consecutive_blank = *matches.get_one::<usize>("max-consecutive-blank").unwrap();
     let max_errors = *matches.get_one::<usize>("max-errors").unwrap();
     let max_warnings = *matches.get_one::<usize>("max-warnings").unwrap();
+    let max_info = *matches.get_one::<usize>("max-info").unwrap();
     let text_mode = matches.get_flag("text");
     let lint_opts = LintOptions {
         disables,
@@ -63,21 +96,21 @@ fn main() {
         consecutive_blank: max_consecutive_blank,
         max_errors,
         max_warnings,
+        max_info,
         text_mode,
     };
 
-    let mut runner = LintRunner {
-        diagnostics: Vec::new(),
-        error_count: 0,
-        warning_count: 0,
-        has_printed_error_limit: false,
-        has_printed_warning_limit: false,
-    };
+    let mut runner = LintRunner::new();
+    let mut writer = BufWriter::new(std::io::stdout());
 
     if matches.get_flag("stdin") {
         let stdin = io::stdin().lock();
         let reader = BufReader::new(stdin);
-        lint_lines("<stdin>", reader, &mut runner, &lint_opts);
+        if !lint_lines("<stdin>", reader, &mut runner, &lint_opts) {
+            print_diagnostics(&matches, &runner, &mut writer);
+            print_summary(&runner);
+            return;
+        }
     }
 
     if let Some(inputs) = matches.get_many::<String>("input") {
@@ -85,28 +118,48 @@ fn main() {
             for entry in glob(pattern).expect("Failed to read glob pattern") {
                 let path = entry.unwrap();
                 if let Ok(file) = File::open(&path) {
-                    let reader = BufReader::new(file);
-                    lint_lines(
+                    let buffer_size = buffer_size_for_file(&path);
+                    let reader = BufReader::with_capacity(buffer_size, file);
+                    if !lint_lines(
                         path.to_string_lossy().as_ref(),
                         reader,
                         &mut runner,
                         &lint_opts,
-                    );
-                    if lint_opts.max_errors > 0 && runner.error_count >= lint_opts.max_errors {
-                        break;
+                    ) {
+                        print_diagnostics(&matches, &runner, &mut writer);
+                        print_summary(&runner);
+                        return;
                     }
                 }
-            }
-            if lint_opts.max_errors > 0 && runner.error_count >= lint_opts.max_errors {
-                break;
             }
         }
     }
 
-    let mut writer = BufWriter::new(std::io::stdout());
-    match matches.get_one::<Format>("format") {
-        Some(Format::Plain) | None => print_diagnostics_plain(&mut writer, &runner.diagnostics),
-        Some(Format::Json) => print_diagnostics_json(&mut writer, &runner.diagnostics),
-        Some(Format::Jsonl) => print_diagnostics_jsonl(&mut writer, &runner.diagnostics),
-    }
+    print_diagnostics(&matches, &runner, &mut writer);
+    print_summary(&runner);
+}
+
+fn print_summary(runner: &LintRunner) {
+    let (error_count, warning_count, info_count) = runner.diagnostic_counts();
+
+    let error_note = if runner.limit_reached(&DiagnosticType::Error) {
+        " (limit reached)"
+    } else {
+        ""
+    };
+    let warning_note = if runner.limit_reached(&DiagnosticType::Warning) {
+        " (limit reached)"
+    } else {
+        ""
+    };
+    let info_note = if runner.limit_reached(&DiagnosticType::Information) {
+        " (limit reached)"
+    } else {
+        ""
+    };
+
+    eprintln!(
+        "\nFound {} errors{}, {} warnings{}, {} information{}",
+        error_count, error_note, warning_count, warning_note, info_count, info_note
+    );
 }

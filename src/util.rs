@@ -1,5 +1,25 @@
+use std::sync::LazyLock;
+
 use annotate_snippets::{Annotation, AnnotationKind, Level};
 use unicode_width::UnicodeWidthChar;
+
+static ASCII_WIDTH: LazyLock<[u8; 128]> = LazyLock::new(|| {
+    let mut arr = [1u8; 128];
+    arr['\t' as usize] = 4;
+    arr
+});
+
+pub fn calculate_width(s: &str) -> usize {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii() {
+                ASCII_WIDTH[c as usize] as usize
+            } else {
+                UnicodeWidthChar::width(c).unwrap_or(0)
+            }
+        })
+        .sum()
+}
 
 pub fn coord_to_pos(source: &str, source_lnum: usize, lnum: usize, col: usize) -> usize {
     let mut cur_lnum = source_lnum;
@@ -17,13 +37,13 @@ pub fn coord_to_pos(source: &str, source_lnum: usize, lnum: usize, col: usize) -
     source.len().saturating_sub(1)
 }
 
-pub fn find_non_space_col(source: &str) -> Option<usize> {
+pub fn find_non_space_col(source: &str) -> usize {
     for (index, c) in source.chars().enumerate() {
         if !c.is_whitespace() {
-            return Some(index);
+            return index;
         }
     }
-    None
+    source.chars().count()
 }
 
 pub fn pos_to_annotation<'a>(
@@ -53,13 +73,13 @@ pub fn severity_to_level(severity: &str) -> Level<'_> {
     }
 }
 
-pub fn byte_col_at_visual_width(line: &str, width: usize) -> usize {
+pub fn char_col_at_visual_width(line: &str, width: usize) -> usize {
     let mut visual_width = 0;
-    let mut last_index = line.len() - 1;
+    let mut char_count = 0;
 
-    for (i, ch) in line.char_indices() {
-        let ch_width = if ch == '\t' {
-            4
+    for ch in line.chars() {
+        let ch_width = if ch.is_ascii() {
+            ASCII_WIDTH[ch as usize] as usize
         } else {
             UnicodeWidthChar::width(ch).unwrap_or(0)
         };
@@ -67,22 +87,20 @@ pub fn byte_col_at_visual_width(line: &str, width: usize) -> usize {
         visual_width += ch_width;
 
         if visual_width > width {
-            last_index = i;
             break;
         }
+
+        char_count += 1;
     }
 
-    last_index
+    char_count
 }
 
-pub fn decorate_line(line: &str) -> String {
-    let mut s = String::with_capacity(line.len() + line.matches('\t').count() * 3);
-    for c in line.chars() {
-        match c {
-            '\t' => s.push_str("    "),
-            c if c.is_control() && !matches!(c, '\n' | '\r') => s.push('.'),
-            _ => s.push(c),
-        }
+pub fn char_index_to_byte_range(s: &str, char_index: usize) -> (usize, usize) {
+    if let Some((start, ch)) = s.char_indices().nth(char_index) {
+        let end = start + ch.len_utf8();
+        (start, end)
+    } else {
+        (s.len(), s.len())
     }
-    s
 }

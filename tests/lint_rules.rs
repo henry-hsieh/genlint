@@ -1,6 +1,6 @@
 use genlint::lint::lint_lines;
 use genlint::types::{Diagnostic, LintOptions, LintRunner};
-use genlint::util::{coord_to_pos, decorate_line};
+use genlint::util::coord_to_pos;
 use std::io::Cursor;
 
 fn default_opts() -> LintOptions {
@@ -10,18 +10,13 @@ fn default_opts() -> LintOptions {
         consecutive_blank: 1,
         max_errors: 0,
         max_warnings: 0,
+        max_info: 0,
         text_mode: false,
     }
 }
 
 fn run_lint(input: &str, opts: &LintOptions) -> Vec<Diagnostic> {
-    let mut runner = LintRunner {
-        diagnostics: Vec::new(),
-        error_count: 0,
-        warning_count: 0,
-        has_printed_error_limit: false,
-        has_printed_warning_limit: false,
-    };
+    let mut runner = LintRunner::new();
     let reader = Cursor::new(input);
     lint_lines("<stdin>", reader, &mut runner, opts);
     runner.diagnostics
@@ -34,9 +29,9 @@ fn detects_mixed_indentation_tab() {
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
-    assert_eq!(diags[0].col, 4);
-    assert_eq!(diags[0].end_col, 4);
-    assert_eq!(diags[0].source, "      let x = 5;\n");
+    assert_eq!(diags[0].col, 1);
+    assert_eq!(diags[0].end_col, 1);
+    assert_eq!(diags[0].source, "\t  let x = 5;\n");
     assert_eq!(diags[0].source_lnum, 0);
     assert_eq!(diags[0].code, "mix-indent");
 }
@@ -49,8 +44,39 @@ fn detects_mixed_indentation_space() {
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
     assert_eq!(diags[0].col, 2);
-    assert_eq!(diags[0].end_col, 5);
-    assert_eq!(diags[0].source, "      let x = 5;\n");
+    assert_eq!(diags[0].end_col, 2);
+    assert_eq!(diags[0].source, "  \tlet x = 5;\n");
+    assert_eq!(diags[0].source_lnum, 0);
+    assert_eq!(diags[0].code, "mix-indent");
+}
+
+#[test]
+fn detects_mixed_indentation_unicode() {
+    let src = " \t α\n";
+    let diags = run_lint(src, &default_opts());
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 1); // Character index of the tab
+    assert_eq!(diags[0].end_col, 1);
+    assert_eq!(diags[0].source, " \t α\n");
+    assert_eq!(diags[0].source_lnum, 0);
+    assert_eq!(diags[0].code, "mix-indent");
+}
+
+#[test]
+fn detects_mixed_indentation_whitespace_only() {
+    let mut opts = default_opts();
+    opts.disables
+        .push(genlint::types::DisableCheck::TrailingSpace);
+    let src = "\t \n";
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 1); // Position of the tab
+    assert_eq!(diags[0].end_col, 1);
+    assert_eq!(diags[0].source, "\t \n");
     assert_eq!(diags[0].source_lnum, 0);
     assert_eq!(diags[0].code, "mix-indent");
 }
@@ -102,7 +128,7 @@ fn detects_long_line() {
         line_length: 50,
         ..default_opts()
     };
-    let diags = run_lint(src.as_str(), &opts);
+    let diags = run_lint(&src, &opts);
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 2);
     assert_eq!(diags[0].end_lnum, 2);
@@ -131,15 +157,7 @@ fn processes_binary_in_text_mode() {
     assert_eq!(diags.len(), 1);
     let diag = &diags[0];
     assert_eq!(diag.code, "trailing-space");
-    assert_eq!(diag.source, "let x = 5;. \n");
-}
-
-#[test]
-fn decorate_line_utility() {
-    assert_eq!(decorate_line("abc\x01def\t\n\r"), "abc.def    \n\r");
-    assert_eq!(decorate_line("normal text"), "normal text");
-    assert_eq!(decorate_line("\tfoo"), "    foo");
-    assert_eq!(decorate_line("bar\t\t"), "bar        ");
+    assert_eq!(diag.source, "let x = 5;\0 \n");
 }
 
 #[test]
@@ -154,7 +172,7 @@ fn detects_consecutive_blank() {
         consecutive_blank: 2,
         ..default_opts()
     };
-    let diags = run_lint(src.as_str(), &opts);
+    let diags = run_lint(&src, &opts);
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
     let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
     let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
@@ -195,6 +213,32 @@ fn detects_consecutive_blank() {
     );
     assert_eq!(pos, [0, 11, 12]);
     assert_eq!(end_pos, [2, 14, 16]);
+
+    // Test helper positioning
+    let helpers = diags[0].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 1);
+    assert_eq!(helpers[0].lnum, 3);
+    assert_eq!(helpers[0].end_lnum, 3);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 9); // "let x = 5;".chars().count() - 1
+
+    let helpers = diags[1].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 2);
+    assert_eq!(helpers[0].lnum, 3);
+    assert_eq!(helpers[0].end_lnum, 3);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 9); // "let x = 5;".chars().count() - 1
+    assert_eq!(helpers[1].lnum, 8);
+    assert_eq!(helpers[1].end_lnum, 8);
+    assert_eq!(helpers[1].col, 0);
+    assert_eq!(helpers[1].end_col, 10); // "let y = 10;".chars().count() - 1
+
+    let helpers = diags[2].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 1);
+    assert_eq!(helpers[0].lnum, 9);
+    assert_eq!(helpers[0].end_lnum, 9);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 10); // "let z = 15;".chars().count() - 1
 }
 
 #[test]
@@ -204,9 +248,9 @@ fn detects_cjk_trailing_space() {
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 0);
     assert_eq!(diags[0].end_lnum, 0);
-    assert_eq!(diags[0].col, 21);
-    assert_eq!(diags[0].end_col, 22);
-    assert_eq!(diags[0].source, "let x = \"    中文\";  \n");
+    assert_eq!(diags[0].col, 14);
+    assert_eq!(diags[0].end_col, 15);
+    assert_eq!(diags[0].source, "let x = \"\t中文\";  \n");
     assert_eq!(diags[0].source_lnum, 0);
     assert_eq!(diags[0].code, "trailing-space");
 }
@@ -219,9 +263,181 @@ fn detects_cjk_long_line() {
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].lnum, 2);
     assert_eq!(diags[0].end_lnum, 2);
-    assert_eq!(diags[0].col, 174);
-    assert_eq!(diags[0].end_col, 190);
+    assert_eq!(diags[0].col, 64);
+    assert_eq!(diags[0].end_col, 70);
     assert_eq!(diags[0].source, err_str.as_str());
     assert_eq!(diags[0].source_lnum, 2);
     assert_eq!(diags[0].code, "long-line");
+}
+
+#[test]
+fn detects_long_line_edge_case_one_over_limit() {
+    let src = "0123456789X\n"; // 11 chars, limit is 10
+    let opts = LintOptions {
+        line_length: 10,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 10);
+    assert_eq!(diags[0].end_col, 10);
+    assert_eq!(diags[0].code, "long-line");
+    assert_eq!(diags[0].message, "Too long line (11/10)");
+}
+
+#[test]
+fn line_at_limit_not_flagged() {
+    let src = "0123456789\n"; // exactly 10 chars
+    let opts = LintOptions {
+        line_length: 10,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 0);
+}
+
+#[test]
+fn detects_missing_final_newline() {
+    let src = "let x = 5;"; // No trailing newline
+    let diags = run_lint(src, &default_opts());
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].code, "final-newline");
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 0);
+    assert_eq!(diags[0].col, 9);
+    assert_eq!(diags[0].end_col, 9);
+}
+
+#[test]
+fn detects_consecutive_blank_at_eof() {
+    let src = "let x = 5;\n\n\n\n"; // 3 trailing newlines at EOF (exceeds limit of 2)
+    let opts = LintOptions {
+        consecutive_blank: 2,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].code, "consecutive-blank");
+    // lnum is the start of the consecutive blank section (line 1, after the non-blank line 0)
+    assert_eq!(diags[0].lnum, 1);
+    assert_eq!(diags[0].end_lnum, 3);
+
+    // Test helper positioning
+    let helpers = diags[0].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 1);
+    assert_eq!(helpers[0].lnum, 0);
+    assert_eq!(helpers[0].end_lnum, 0);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 9); // "let x = 5;".chars().count() - 1
+}
+
+#[test]
+fn line_with_newline_not_flagged_for_final_newline() {
+    let src = "let x = 5;\n"; // Has trailing newline
+    let diags = run_lint(src, &default_opts());
+    let final_newline_diags: Vec<_> = diags.iter().filter(|d| d.code == "final-newline").collect();
+    assert_eq!(final_newline_diags.len(), 0);
+}
+
+#[test]
+fn detects_consecutive_blank_with_tabs() {
+    let src = "\n\n\n\tlet x = 5;\n\n\n\n\tlet y = 10;\n\tlet z = 15;\n\n\n\n\n";
+    let opts = LintOptions {
+        consecutive_blank: 2,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+
+    assert_eq!(diags.len(), 3);
+
+    // Test helper positioning with tabs (character-based columns)
+    let helpers1 = diags[1].helpers.as_ref().unwrap();
+    assert_eq!(helpers1.len(), 2);
+
+    // Previous line: "\tlet x = 5;" (11 chars including tab)
+    assert_eq!(helpers1[0].lnum, 3);
+    assert_eq!(helpers1[0].end_lnum, 3);
+    assert_eq!(helpers1[0].col, 0);
+    assert_eq!(helpers1[0].end_col, 10); // chars().count() - 1
+
+    // Next line: "\tlet y = 10;" (12 chars including tab)
+    assert_eq!(helpers1[1].lnum, 7);
+    assert_eq!(helpers1[1].end_lnum, 7);
+    assert_eq!(helpers1[1].col, 0);
+    assert_eq!(helpers1[1].end_col, 11); // chars().count() - 1
+}
+
+#[test]
+fn detects_consecutive_blank_at_eof_with_tabs() {
+    let src = "\tlet x = 5;\n\n\n\n"; // 3 trailing newlines
+    let opts = LintOptions {
+        consecutive_blank: 2,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+
+    assert_eq!(diags.len(), 1);
+
+    // Test helper positioning with tabs
+    let helpers = diags[0].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 1);
+    assert_eq!(helpers[0].lnum, 0);
+    assert_eq!(helpers[0].end_lnum, 0);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 10); // "\tlet x = 5;".chars().count() - 1
+}
+
+#[test]
+fn detects_consecutive_blank_with_control_chars() {
+    let src = "let x = \"\t\x01\";\n\n\n\nlet y = \"\x02\";\n\n\n\n\n";
+    let opts = LintOptions {
+        consecutive_blank: 2,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+
+    // Should have 2 diagnostics (consecutive blanks between and at end)
+    assert_eq!(diags.len(), 2);
+
+    // First diagnostic
+    let helpers = diags[0].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 2);
+
+    // Previous line: "let x = \"\t\x01\";" (13 chars including control char)
+    assert_eq!(helpers[0].lnum, 0);
+    assert_eq!(helpers[0].end_lnum, 0);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 12); // chars().count() - 1
+
+    // Next line: "let y = \"\x02\";" (12 chars including control char)
+    assert_eq!(helpers[1].lnum, 4);
+    assert_eq!(helpers[1].end_lnum, 4);
+    assert_eq!(helpers[1].col, 0);
+    assert_eq!(helpers[1].end_col, 11); // chars().count() - 1
+    //
+    // Second diagnostic
+    let helpers = diags[1].helpers.as_ref().unwrap();
+    assert_eq!(helpers.len(), 1);
+
+    // Previous line: "let y = \"\x02\";" (12 chars including control char)
+    assert_eq!(helpers[0].lnum, 4);
+    assert_eq!(helpers[0].end_lnum, 4);
+    assert_eq!(helpers[0].col, 0);
+    assert_eq!(helpers[0].end_col, 11); // chars().count() - 1
+}
+
+#[test]
+fn detects_consecutive_blank_file_only_has_blank_lines() {
+    let src = "\n\n\n\n\n"; // 5 blank lines (exceeds limit of 1)
+    let diags = run_lint(src, &default_opts());
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0].code, "consecutive-blank");
+    assert_eq!(diags[0].lnum, 0);
+    assert_eq!(diags[0].end_lnum, 4);
+    assert_eq!(diags[0].message, "Too many consecutive blank lines (5/1)");
+
+    // No helpers since there is no previous non-blank line
+    assert!(diags[0].helpers.is_none());
 }
