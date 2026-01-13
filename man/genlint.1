@@ -1,13 +1,69 @@
 .ie \n(.g .ds Aq \(aq
 .el .ds Aq '
-.TH genlint 1  "genlint " 
+.TH genlint 1  "genlint 0.2.1" 
 .SH NAME
-genlint \- Generic and configurable linter
+genlint \- A generic, configurable linter for multiple languages
 .SH SYNOPSIS
-\fBgenlint\fR [\fB\-h\fR|\fB\-\-help\fR] 
+\fBgenlint\fR [\fB\-s\fR|\fB\-\-stdin\fR] [\fB\-i\fR|\fB\-\-input\fR] [\fB\-e\fR|\fB\-\-exclude\fR] [\fB\-f\fR|\fB\-\-format\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-d\fR|\fB\-\-disable\fR] [\fB\-a\fR|\fB\-\-text\fR] [\fB\-l\fR|\fB\-\-max\-line\-length\fR] [\fB\-c\fR|\fB\-\-max\-consecutive\-blank\fR] [\fB\-\-max\-errors\fR] [\fB\-\-max\-warnings\fR] [\fB\-\-max\-info\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
-Generic and configurable linter
+A generic, configurable linter for multiple languages
 .SH OPTIONS
+.TP
+\fB\-s\fR, \fB\-\-stdin\fR
+Read input from stdin
+.TP
+\fB\-i\fR, \fB\-\-input\fR \fI<FILES>...\fR
+Input file(s) to lint
+.TP
+\fB\-e\fR, \fB\-\-exclude\fR \fI<PATTERNS>...\fR
+Glob patterns to exclude
+.TP
+\fB\-f\fR, \fB\-\-format\fR \fI<FORMAT>\fR [default: plain]
+Output format
+.br
+
+.br
+[\fIpossible values: \fRjson, jsonl, plain]
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<FILE>\fR
+Output file path
+.TP
+\fB\-d\fR, \fB\-\-disable\fR \fI<CHECKS>...\fR
+Disable specific checks
+.br
+
+.br
+[\fIpossible values: \fRmix\-indent, trailing\-space, conflict\-marker, long\-line, consecutive\-blank, final\-newline]
+.TP
+\fB\-a\fR, \fB\-\-text\fR
+Treat all input as text, bypassing binary detection
+.TP
+\fB\-l\fR, \fB\-\-max\-line\-length\fR \fI<NUM>\fR [default: 120]
+Maximum allowed line length
+.TP
+\fB\-c\fR, \fB\-\-max\-consecutive\-blank\fR \fI<NUM>\fR [default: 1]
+Maximum allowed consecutive blank lines
+.TP
+\fB\-\-max\-errors\fR \fI<NUM>\fR [default: 50]
+Maximum number of errors to report (set to 0 for no limit)
+.TP
+\fB\-\-max\-warnings\fR \fI<NUM>\fR [default: 50]
+Maximum number of warnings to report (set to 0 for no limit)
+.TP
+\fB\-\-max\-info\fR \fI<NUM>\fR [default: 0]
+Maximum number of information to report (set to 0 for no limit)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+genlint\-generate\-completion(1)
+Generate shell completions
+.TP
+genlint\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH VERSION
+v0.2.1

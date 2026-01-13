@@ -1,7 +1,8 @@
 use std::cmp::max;
 use std::io::BufRead;
 
-use crate::types::{Diagnostic, DisableCheck::*, Helper, LintOptions, LintRunner};
+use crate::enums::DisableCheck::*;
+use crate::types::{Diagnostic, Helper, LintOptions, LintRunner};
 use crate::util::{calculate_width, char_col_at_visual_width, find_non_space_col};
 
 pub fn lint_lines<R: BufRead>(

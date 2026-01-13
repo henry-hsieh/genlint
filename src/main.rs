@@ -1,4 +1,5 @@
 mod args;
+mod enums;
 mod lint;
 mod output;
 mod types;
@@ -12,13 +13,13 @@ use std::io::{self, BufReader, BufWriter, Write};
 use crate::types::DiagnosticType;
 
 use crate::args::build_cli;
+use crate::enums::{
+    DisableCheck::{self, ConsecutiveBlank, LongLine},
+    Format,
+};
 use crate::lint::lint_lines;
 use crate::output::{print_diagnostics_json, print_diagnostics_jsonl, print_diagnostics_plain};
-use crate::types::{
-    DisableCheck,
-    DisableCheck::{ConsecutiveBlank, LongLine},
-    Format, LintOptions, LintRunner,
-};
+use crate::types::{LintOptions, LintRunner};
 
 const SMALL_FILE_THRESHOLD: u64 = 1024 * 1024;
 const SMALL_BUFFER_SIZE: usize = 64 * 1024;

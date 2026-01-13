@@ -1,4 +1,4 @@
-use clap::ValueEnum;
+use crate::enums::DisableCheck;
 use serde::Serialize;
 use serde_partial::SerializePartial;
 use std::collections::{HashMap, HashSet};
@@ -34,23 +34,6 @@ struct DiagnosticStats {
     count: usize,
     has_printed_limit: bool,
     limit_reached: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
-pub enum Format {
-    Json,
-    Jsonl,
-    Plain,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
-pub enum DisableCheck {
-    MixIndent,
-    TrailingSpace,
-    ConflictMarker,
-    LongLine,
-    ConsecutiveBlank,
-    FinalNewline,
 }
 
 #[derive(Debug)]
