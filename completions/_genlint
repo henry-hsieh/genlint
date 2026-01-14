@@ -29,8 +29,9 @@ _genlint() {
 '--max-line-length=[Maximum allowed line length]:NUM:_default' \
 '-c+[Maximum allowed consecutive blank lines]:NUM:_default' \
 '--max-consecutive-blank=[Maximum allowed consecutive blank lines]:NUM:_default' \
-'--max-errors=[Maximum number of errors to report (set to 0 to disable)]:NUM:_default' \
-'--max-warnings=[Maximum number of warnings to report (set to 0 to disable)]:NUM:_default' \
+'--max-errors=[Maximum number of errors to report (set to 0 for no limit)]:NUM:_default' \
+'--max-warnings=[Maximum number of warnings to report (set to 0 for no limit)]:NUM:_default' \
+'--max-info=[Maximum number of information to report (set to 0 for no limit)]:NUM:_default' \
 '(-i --input -e --exclude)-s[Read input from stdin]' \
 '(-i --input -e --exclude)--stdin[Read input from stdin]' \
 '-a[Treat all input as text, bypassing binary detection]' \

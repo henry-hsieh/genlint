@@ -68,7 +68,7 @@ fn detects_mixed_indentation_unicode() {
 fn detects_mixed_indentation_whitespace_only() {
     let mut opts = default_opts();
     opts.disables
-        .push(genlint::types::DisableCheck::TrailingSpace);
+        .push(genlint::enums::DisableCheck::TrailingSpace);
     let src = "\t \n";
     let diags = run_lint(src, &opts);
     assert_eq!(diags.len(), 1);

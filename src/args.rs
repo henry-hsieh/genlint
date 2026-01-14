@@ -1,4 +1,4 @@
-use crate::types::{DisableCheck, Format};
+use crate::enums::{DisableCheck, Format};
 use clap::{Arg, ArgAction, ArgGroup, Command, arg, value_parser};
 use clap_complete::Shell;
 use std::path::PathBuf;
