@@ -35,7 +35,7 @@ _genlint() {
 
     case "${cmd}" in
         genlint)
-            opts="-s -i -e -f -o -d -a -l -c -h -V --stdin --input --exclude --format --output --disable --text --max-line-length --max-consecutive-blank --max-errors --max-warnings --max-info --help --version generate-completion help"
+            opts="-s -i -e -f -o -d -a -l -c -m -h -V --stdin --input --exclude --format --output --disable --text --max-line-length --max-consecutive-blank --max-errors --max-warnings --max-info --conflict-marker-style --help --version generate-completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -107,6 +107,14 @@ _genlint() {
                     ;;
                 --max-info)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --conflict-marker-style)
+                    COMPREPLY=($(compgen -W "git git-diff3 jj jj-diff3 jj-snapshot" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "git git-diff3 jj jj-diff3 jj-snapshot" -- "${cur}"))
                     return 0
                     ;;
                 *)

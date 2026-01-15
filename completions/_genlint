@@ -32,6 +32,8 @@ _genlint() {
 '--max-errors=[Maximum number of errors to report (set to 0 for no limit)]:NUM:_default' \
 '--max-warnings=[Maximum number of warnings to report (set to 0 for no limit)]:NUM:_default' \
 '--max-info=[Maximum number of information to report (set to 0 for no limit)]:NUM:_default' \
+'-m+[Conflict marker style]:STYLE:(git git-diff3 jj jj-diff3 jj-snapshot)' \
+'--conflict-marker-style=[Conflict marker style]:STYLE:(git git-diff3 jj jj-diff3 jj-snapshot)' \
 '(-i --input -e --exclude)-s[Read input from stdin]' \
 '(-i --input -e --exclude)--stdin[Read input from stdin]' \
 '-a[Treat all input as text, bypassing binary detection]' \

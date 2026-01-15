@@ -154,7 +154,7 @@ fn test_long_line() {
 fn test_max_errors() {
     let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin", "--max-errors", "2"])
-        .write_stdin("<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n<<<<<<< HEAD\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>>\n<<<<<<< HEAD\nlet z = 5;\n=======\nlet z = 6;\n>>>>>>>\nline  \nline  \n")
+        .write_stdin("<<<<<<< Head\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>> Remote\n<<<<<<< Head\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>> Remote\n<<<<<<< Head\nlet z = 5;\n=======\nlet z = 6;\n>>>>>>> Remote\nline  \nline  \n")
         .assert()
         .success()
         .stdout(contains("Git conflict marker").count(2))
@@ -166,7 +166,7 @@ fn test_max_errors() {
 fn test_max_warnings() {
     let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin", "--max-warnings", "2"])
-        .write_stdin("line1  \nline2  \nline3  \n<<<<<<< HEAD\nerror\n=======\n")
+        .write_stdin("line1  \nline2  \nline3  \n<<<<<<< Head\nerror\n=======\n")
         .assert()
         .success()
         .stdout(contains("Trailing whitespaces or tabs").count(2))
@@ -200,7 +200,7 @@ fn test_max_information() {
 fn test_max_errors_zero() {
     let mut cmd = cargo_bin_cmd!();
     cmd.args(["--stdin", "--max-errors", "0"])
-        .write_stdin("<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n<<<<<<< HEAD\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>>\n")
+        .write_stdin("<<<<<<< Head\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>> Remote\n<<<<<<< Head\nlet y = 3;\n=======\nlet y = 4;\n>>>>>>> Remote\n")
         .assert()
         .success()
         .stdout(contains("Git conflict marker").count(6))

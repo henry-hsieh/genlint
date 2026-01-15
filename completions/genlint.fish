@@ -1,6 +1,6 @@
 # Print an optspec for argparse to handle cmd's options that are independent of any subcommand.
 function __fish_genlint_global_optspecs
-	string join \n s/stdin i/input= e/exclude= f/format= o/output= d/disable= a/text l/max-line-length= c/max-consecutive-blank= max-errors= max-warnings= max-info= h/help V/version
+	string join \n s/stdin i/input= e/exclude= f/format= o/output= d/disable= a/text l/max-line-length= c/max-consecutive-blank= max-errors= max-warnings= max-info= m/conflict-marker-style= h/help V/version
 end
 
 function __fish_genlint_needs_command
@@ -41,6 +41,11 @@ complete -c genlint -n "__fish_genlint_needs_command" -s c -l max-consecutive-bl
 complete -c genlint -n "__fish_genlint_needs_command" -l max-errors -d 'Maximum number of errors to report (set to 0 for no limit)' -r
 complete -c genlint -n "__fish_genlint_needs_command" -l max-warnings -d 'Maximum number of warnings to report (set to 0 for no limit)' -r
 complete -c genlint -n "__fish_genlint_needs_command" -l max-info -d 'Maximum number of information to report (set to 0 for no limit)' -r
+complete -c genlint -n "__fish_genlint_needs_command" -s m -l conflict-marker-style -d 'Conflict marker style' -r -f -a "git\t''
+git-diff3\t''
+jj\t''
+jj-diff3\t''
+jj-snapshot\t''"
 complete -c genlint -n "__fish_genlint_needs_command" -s s -l stdin -d 'Read input from stdin'
 complete -c genlint -n "__fish_genlint_needs_command" -s a -l text -d 'Treat all input as text, bypassing binary detection'
 complete -c genlint -n "__fish_genlint_needs_command" -s h -l help -d 'Print help'
