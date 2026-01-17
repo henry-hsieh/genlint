@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/henry-hsieh/genlint/compare/v0.3.0...v0.4.0) (2026-01-17)
+
+
+### Features
+
+* **lint:** support git-diff3 and jj conflict markers ([#40](https://github.com/henry-hsieh/genlint/issues/40)) ([c787e0a](https://github.com/henry-hsieh/genlint/commit/c787e0a831be8e28da538fa89e86d67843e44d72))
+
 ## [0.3.0](https://github.com/henry-hsieh/genlint/compare/v0.2.1...v0.3.0) (2026-01-14)
 
 
