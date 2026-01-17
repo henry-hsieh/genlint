@@ -1,6 +1,6 @@
 [package]
 name = "genlint"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 authors = ["Henry Hsieh <r901042004@gmail.com>"]
 description = "A generic, configurable linter for multiple languages"
