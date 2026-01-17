@@ -142,10 +142,9 @@ pub fn lint_lines<R: BufRead>(
                     // Helper function to check if a marker matches for a given length
                     let check_marker_for_length = |length: usize| -> bool {
                         for &c in chars {
-                            let is_match = if c == b'=' {
-                                trimmed.len() == length
-                                    && trimmed.as_bytes().iter().all(|&b| b == c)
-                            } else if trimmed.len() > length {
+                            let is_match = if trimmed.len() == length {
+                                trimmed.as_bytes().iter().all(|&b| b == c)
+                            } else if c != b'=' && trimmed.len() > length {
                                 let prefix = &trimmed.as_bytes()[..length];
                                 let next_char = trimmed.as_bytes()[length];
                                 next_char == b' ' && prefix.iter().all(|&b| b == c)
