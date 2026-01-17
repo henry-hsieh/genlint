@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/henry-hsieh/genlint/compare/v0.4.0...v0.4.1) (2026-01-17)
+
+
+### Bug Fixes
+
+* **lint:** conflict markers could optionally have no trailing string ([#43](https://github.com/henry-hsieh/genlint/issues/43)) ([d59eef0](https://github.com/henry-hsieh/genlint/commit/d59eef0d4416627ff3d36005a26f507b134f5317))
+
 ## [0.4.0](https://github.com/henry-hsieh/genlint/compare/v0.3.0...v0.4.0) (2026-01-17)
 
 
