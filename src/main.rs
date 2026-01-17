@@ -14,6 +14,7 @@ use crate::types::DiagnosticType;
 
 use crate::args::build_cli;
 use crate::enums::{
+    ConflictMarkerStyle,
     DisableCheck::{self, ConsecutiveBlank, LongLine},
     Format,
 };
@@ -91,6 +92,9 @@ fn main() {
     let max_warnings = *matches.get_one::<usize>("max-warnings").unwrap();
     let max_info = *matches.get_one::<usize>("max-info").unwrap();
     let text_mode = matches.get_flag("text");
+    let conflict_marker_style = *matches
+        .get_one::<ConflictMarkerStyle>("conflict-marker-style")
+        .unwrap();
     let lint_opts = LintOptions {
         disables,
         line_length: max_line_length,
@@ -99,6 +103,7 @@ fn main() {
         max_warnings,
         max_info,
         text_mode,
+        conflict_marker_style,
     };
 
     let mut runner = LintRunner::new();

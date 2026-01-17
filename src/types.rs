@@ -1,4 +1,4 @@
-use crate::enums::DisableCheck;
+use crate::enums::{ConflictMarkerStyle, DisableCheck};
 use serde::Serialize;
 use serde_partial::SerializePartial;
 use std::collections::{HashMap, HashSet};
@@ -45,6 +45,7 @@ pub struct LintOptions {
     pub max_warnings: usize,
     pub max_info: usize,
     pub text_mode: bool,
+    pub conflict_marker_style: ConflictMarkerStyle,
 }
 
 #[derive(Debug, Default)]
@@ -91,6 +92,17 @@ impl LintRunner {
         } else {
             true
         }
+    }
+
+    pub fn clear_conflict_markers(&mut self) {
+        self.diagnostics.retain(|d| d.code != "conflict-marker");
+        if let Some(stats) = self.limited_stats.get_mut(&DiagnosticType::Error) {
+            stats.count = 0;
+            stats.limit_reached = false;
+            stats.has_printed_limit = false;
+        }
+        self.processing_blocked.remove(&DiagnosticType::Error);
+        self.should_terminate = false;
     }
 
     pub fn add_diagnostic(&mut self, opts: &LintOptions, diag: Diagnostic) -> bool {

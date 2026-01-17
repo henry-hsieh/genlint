@@ -1,7 +1,7 @@
 use std::cmp::max;
 use std::io::BufRead;
 
-use crate::enums::DisableCheck::*;
+use crate::enums::{ConflictMarkerStyle, DisableCheck::*};
 use crate::types::{Diagnostic, Helper, LintOptions, LintRunner};
 use crate::util::{calculate_width, char_col_at_visual_width, find_non_space_col};
 
@@ -37,6 +37,13 @@ pub fn lint_lines<R: BufRead>(
 
     // Store data for the final newline check: (lnum, col, raw_line, ends_with_eol)
     let mut last_line_data: Option<(usize, usize, String, bool)> = None;
+
+    // Conflict marker detection
+    let is_jj_style = matches!(
+        opts.conflict_marker_style,
+        ConflictMarkerStyle::Jj | ConflictMarkerStyle::JjDiff3 | ConflictMarkerStyle::JjSnapshot
+    );
+    let mut current_min_length = 7;
 
     loop {
         buffer.clear();
@@ -120,30 +127,96 @@ pub fn lint_lines<R: BufRead>(
                     }
                 }
 
-                if !opts.disables.contains(&ConflictMarker)
-                    && (trimmed.starts_with("<<<<<<<")
-                        || trimmed.starts_with("=======")
-                        || trimmed.starts_with(">>>>>>>"))
-                {
-                    if !runner.can_add_issue("error") {
-                        return false; // Early terminate the linter when error counts exceed the limit
+                if !opts.disables.contains(&ConflictMarker) {
+                    let chars = match opts.conflict_marker_style {
+                        ConflictMarkerStyle::Git => "<>=".as_bytes(),
+                        ConflictMarkerStyle::Jj => "<%+\\>".as_bytes(),
+                        ConflictMarkerStyle::GitDiff3 | ConflictMarkerStyle::JjDiff3 => {
+                            "<>=|".as_bytes()
+                        }
+                        ConflictMarkerStyle::JjSnapshot => "<+->".as_bytes(),
+                    };
+                    let mut found_marker = false;
+                    let mut marker_length = 0;
+
+                    // Helper function to check if a marker matches for a given length
+                    let check_marker_for_length = |length: usize| -> bool {
+                        for &c in chars {
+                            let is_match = if c == b'=' {
+                                trimmed.len() == length
+                                    && trimmed.as_bytes().iter().all(|&b| b == c)
+                            } else if trimmed.len() > length {
+                                let prefix = &trimmed.as_bytes()[..length];
+                                let next_char = trimmed.as_bytes()[length];
+                                next_char == b' ' && prefix.iter().all(|&b| b == c)
+                            } else {
+                                false
+                            };
+                            if is_match {
+                                return true;
+                            }
+                        }
+                        false
+                    };
+
+                    // For JJ styles, check for longer markers first
+                    if is_jj_style {
+                        for len in (11..=trimmed.len()).step_by(4) {
+                            if check_marker_for_length(len) {
+                                found_marker = true;
+                                marker_length = len;
+                                break;
+                            }
+                        }
                     }
 
-                    let diag = Diagnostic {
-                        file: filename.to_string(),
-                        lnum,
-                        end_lnum: lnum,
-                        col: 0,
-                        end_col: trimmed.chars().count().saturating_sub(1),
-                        severity: "error".to_string(),
-                        source: line.to_string(),
-                        source_lnum: lnum,
-                        code: "conflict-marker".to_string(),
-                        message: format!("Git conflict marker: {trimmed}"),
-                        helpers: None,
-                    };
-                    if !runner.add_diagnostic(opts, diag) {
-                        return false;
+                    // If not found longer, check for markers of current_min_length
+                    if !found_marker && check_marker_for_length(current_min_length) {
+                        found_marker = true;
+                        marker_length = current_min_length;
+                    }
+
+                    if found_marker {
+                        // For JJ styles, update min length if longer marker found
+                        if is_jj_style
+                            && marker_length > current_min_length
+                            && marker_length % 4 == 3
+                        {
+                            runner.clear_conflict_markers();
+                            current_min_length = marker_length;
+                        }
+
+                        // Check if can add issue
+                        if !runner.can_add_issue("error") {
+                            if !is_jj_style {
+                                return false; // Early terminate for non-JJ styles
+                            }
+                            // For JJ styles, continue processing
+                        } else {
+                            let style_name = match opts.conflict_marker_style {
+                                ConflictMarkerStyle::Git => "Git",
+                                ConflictMarkerStyle::GitDiff3 => "Git diff3",
+                                ConflictMarkerStyle::Jj => "Jujutsu",
+                                ConflictMarkerStyle::JjDiff3 => "Jujutsu diff3",
+                                ConflictMarkerStyle::JjSnapshot => "Jujutsu snapshot",
+                            };
+                            let diag = Diagnostic {
+                                file: filename.to_string(),
+                                lnum,
+                                end_lnum: lnum,
+                                col: 0,
+                                end_col: trimmed.chars().count().saturating_sub(1),
+                                severity: "error".to_string(),
+                                source: line.to_string(),
+                                source_lnum: lnum,
+                                code: "conflict-marker".to_string(),
+                                message: format!("{} conflict marker: {}", style_name, trimmed),
+                                helpers: None,
+                            };
+                            if !runner.add_diagnostic(opts, diag) {
+                                return false;
+                            }
+                        }
                     }
                 }
 

@@ -1,3 +1,4 @@
+use genlint::enums::ConflictMarkerStyle;
 use genlint::lint::lint_lines;
 use genlint::types::{Diagnostic, LintOptions, LintRunner};
 use genlint::util::coord_to_pos;
@@ -12,6 +13,7 @@ fn default_opts() -> LintOptions {
         max_warnings: 0,
         max_info: 0,
         text_mode: false,
+        conflict_marker_style: ConflictMarkerStyle::Git,
     }
 }
 
@@ -95,9 +97,95 @@ fn detects_trailing_space() {
     assert_eq!(diags[0].code, "trailing-space");
 }
 
+const CONFLICT_MARKER_SOURCE_SHORT: &str = r"should not match below
+--no space after marker--
+<<<<<<<
+|||||||
+%%%%%%%
++++++++
+-------
+\\\\\\\
+>>>>>>>
+--character number incorrect (>7)--
+<<<<<<<< Error
+|||||||| Error
+%%%%%%%% Error
+========
+++++++++ Error
+-------- Error
+\\\\\\\\ Error
+>>>>>>>> Error
+--character number incorrect (<7)--
+<<< E
+||| E
+%%% E
+===
++++ E
+--- E
+\\\ E
+>>> E
+--character after `=`--
+======= Error
+should not match above
+
+<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3
+||||||| git-diff3/jj-diff3
+%%%%%%% jj
+git/git-diff3/jj-diff3:
+=======
++++++++ jj/jj-snapshot
+------- jj-snapshot
+\\\\\\\ jj
+>>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3
+";
+const CONFLICT_MARKER_SOURCE_LONG: &str = r"should not match or update minimum length below
+--no space after marker--
+<<<<<<<<<<<<<<<
+|||||||||||||||
+%%%%%%%%%%%%%%%
++++++++++++++++
+---------------
+\\\\\\\\\\\\\\\
+>>>>>>>>>>>
+--character number incorrect (>15)--
+<<<<<<<<<<<<<<<< Error
+|||||||||||||||| Error
+%%%%%%%%%%%%%%%% Error
+================
+++++++++++++++++ Error
+---------------- Error
+\\\\\\\\\\\\\\\\ Error
+>>>>>>>>>>>>>>>> Error
+--character after `=`--
+=============== Error
+should not match or update minimum length above
+
+update minimum length for jj variants below
+<<<<<<<<<<< jj/jj-snapshot/jj-diff3
+||||||||||| jj-diff3
+%%%%%%%%%%% jj
+jj-diff3:
+===========
++++++++++++ jj/jj-snapshot
+----------- jj-snapshot
+\\\\\\\\\\\ jj
+>>>>>>>>>>> jj/jj-snapshot/jj-diff3
+
+should be only matched by git variants below
+<<<<<<< git/git-diff3
+||||||| git-diff3
+%%%%%%% jj
+git/git-diff3:
+=======
+>>>>>>> git/git-diff3
+";
+
 #[test]
-fn detects_conflict_markers() {
-    let src = "<<<<<<< HEAD\nlet x = 1;\n=======\nlet x = 2;\n>>>>>>>\n";
+fn detects_git_conflict_markers() {
+    let src = &format!(
+        "{}{}",
+        CONFLICT_MARKER_SOURCE_SHORT, CONFLICT_MARKER_SOURCE_LONG
+    );
     let diags = run_lint(src, &default_opts());
     let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
     let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
@@ -105,19 +193,298 @@ fn detects_conflict_markers() {
     let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
     let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
     let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
-    let codes: Vec<&str> = diags.iter().map(|d| d.code.as_str()).collect();
 
-    assert_eq!(diags.len(), 3);
-    assert_eq!(lnums, [0, 2, 4]);
-    assert_eq!(end_lnums, [0, 2, 4]);
-    assert_eq!(cols, [0, 0, 0]);
-    assert_eq!(end_cols, [11, 6, 6]);
-    assert_eq!(sources, ["<<<<<<< HEAD\n", "=======\n", ">>>>>>>\n"]);
-    assert_eq!(source_lnums, [0, 2, 4]);
+    assert_eq!(diags.len(), 6);
+    assert_eq!(lnums, [31, 35, 39, 74, 78, 79]);
+    assert_eq!(end_lnums, [31, 35, 39, 74, 78, 79]);
+    assert_eq!(cols, [0, 0, 0, 0, 0, 0]);
+    assert_eq!(end_cols, [44, 6, 44, 20, 6, 20]);
     assert_eq!(
-        codes,
-        ["conflict-marker", "conflict-marker", "conflict-marker"]
+        sources,
+        [
+            "<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "=======\n",
+            ">>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "<<<<<<< git/git-diff3\n",
+            "=======\n",
+            ">>>>>>> git/git-diff3\n"
+        ]
     );
+    assert_eq!(source_lnums, [31, 35, 39, 74, 78, 79]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Git conflict marker"));
+    }
+}
+
+#[test]
+fn detects_git_diff3_conflict_markers() {
+    let src = &format!(
+        "{}{}",
+        CONFLICT_MARKER_SOURCE_SHORT, CONFLICT_MARKER_SOURCE_LONG
+    );
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::GitDiff3,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 8);
+    assert_eq!(lnums, [31, 32, 35, 39, 74, 75, 78, 79]);
+    assert_eq!(end_lnums, [31, 32, 35, 39, 74, 75, 78, 79]);
+    assert_eq!(cols, [0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(end_cols, [44, 25, 6, 44, 20, 16, 6, 20]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "||||||| git-diff3/jj-diff3\n",
+            "=======\n",
+            ">>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "<<<<<<< git/git-diff3\n",
+            "||||||| git-diff3\n",
+            "=======\n",
+            ">>>>>>> git/git-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [31, 32, 35, 39, 74, 75, 78, 79]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Git diff3 conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_conflict_markers_static() {
+    let src = &CONFLICT_MARKER_SOURCE_SHORT;
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::Jj,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 5);
+    assert_eq!(lnums, [31, 33, 36, 38, 39]);
+    assert_eq!(end_lnums, [31, 33, 36, 38, 39]);
+    assert_eq!(cols, [0, 0, 0, 0, 0]);
+    assert_eq!(end_cols, [44, 9, 21, 9, 44]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "%%%%%%% jj\n",
+            "+++++++ jj/jj-snapshot\n",
+            "\\\\\\\\\\\\\\ jj\n",
+            ">>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [31, 33, 36, 38, 39]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_conflict_markers_dynamic() {
+    let src = &format!(
+        "{}{}",
+        CONFLICT_MARKER_SOURCE_SHORT, CONFLICT_MARKER_SOURCE_LONG
+    );
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::Jj,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 5);
+    assert_eq!(lnums, [63, 65, 68, 70, 71]);
+    assert_eq!(end_lnums, [63, 65, 68, 70, 71]);
+    assert_eq!(cols, [0, 0, 0, 0, 0]);
+    assert_eq!(end_cols, [34, 13, 25, 13, 34]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<<<<<< jj/jj-snapshot/jj-diff3\n",
+            "%%%%%%%%%%% jj\n",
+            "+++++++++++ jj/jj-snapshot\n",
+            "\\\\\\\\\\\\\\\\\\\\\\ jj\n",
+            ">>>>>>>>>>> jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [63, 65, 68, 70, 71]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_snapshot_conflict_markers_static() {
+    let src = &CONFLICT_MARKER_SOURCE_SHORT;
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::JjSnapshot,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 4);
+    assert_eq!(lnums, [31, 36, 37, 39]);
+    assert_eq!(end_lnums, [31, 36, 37, 39]);
+    assert_eq!(cols, [0, 0, 0, 0]);
+    assert_eq!(end_cols, [44, 21, 18, 44]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "+++++++ jj/jj-snapshot\n",
+            "------- jj-snapshot\n",
+            ">>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [31, 36, 37, 39]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu snapshot conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_snapshot_conflict_markers_dynamic() {
+    let src = &format!(
+        "{}{}",
+        CONFLICT_MARKER_SOURCE_SHORT, CONFLICT_MARKER_SOURCE_LONG
+    );
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::JjSnapshot,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 4);
+    assert_eq!(lnums, [63, 68, 69, 71]);
+    assert_eq!(end_lnums, [63, 68, 69, 71]);
+    assert_eq!(cols, [0, 0, 0, 0]);
+    assert_eq!(end_cols, [34, 25, 22, 34]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<<<<<< jj/jj-snapshot/jj-diff3\n",
+            "+++++++++++ jj/jj-snapshot\n",
+            "----------- jj-snapshot\n",
+            ">>>>>>>>>>> jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [63, 68, 69, 71]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu snapshot conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_diff3_conflict_markers_static() {
+    let src = &CONFLICT_MARKER_SOURCE_SHORT;
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::JjDiff3,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 4);
+    assert_eq!(lnums, [31, 32, 35, 39]);
+    assert_eq!(end_lnums, [31, 32, 35, 39]);
+    assert_eq!(cols, [0, 0, 0, 0]);
+    assert_eq!(end_cols, [44, 25, 6, 44]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<< git/git-diff3/jj/jj-snapshot/jj-diff3\n",
+            "||||||| git-diff3/jj-diff3\n",
+            "=======\n",
+            ">>>>>>> git/git-diff3/jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [31, 32, 35, 39]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu diff3 conflict marker"));
+    }
+}
+
+#[test]
+fn detects_jj_diff3_conflict_markers_dynamic() {
+    let src = &format!(
+        "{}{}",
+        CONFLICT_MARKER_SOURCE_SHORT, CONFLICT_MARKER_SOURCE_LONG
+    );
+    let opts = LintOptions {
+        conflict_marker_style: ConflictMarkerStyle::JjDiff3,
+        ..default_opts()
+    };
+    let diags = run_lint(src, &opts);
+    let lnums: Vec<usize> = diags.iter().map(|d| d.lnum).collect();
+    let end_lnums: Vec<usize> = diags.iter().map(|d| d.end_lnum).collect();
+    let cols: Vec<usize> = diags.iter().map(|d| d.col).collect();
+    let end_cols: Vec<usize> = diags.iter().map(|d| d.end_col).collect();
+    let sources: Vec<&str> = diags.iter().map(|d| d.source.as_str()).collect();
+    let source_lnums: Vec<usize> = diags.iter().map(|d| d.source_lnum).collect();
+
+    assert_eq!(diags.len(), 4);
+    assert_eq!(lnums, [63, 64, 67, 71]);
+    assert_eq!(end_lnums, [63, 64, 67, 71]);
+    assert_eq!(cols, [0, 0, 0, 0]);
+    assert_eq!(end_cols, [34, 19, 10, 34]);
+    assert_eq!(
+        sources,
+        [
+            "<<<<<<<<<<< jj/jj-snapshot/jj-diff3\n",
+            "||||||||||| jj-diff3\n",
+            "===========\n",
+            ">>>>>>>>>>> jj/jj-snapshot/jj-diff3\n"
+        ]
+    );
+    assert_eq!(source_lnums, [63, 64, 67, 71]);
+    for diag in &diags {
+        assert_eq!(diag.code, "conflict-marker");
+        assert!(diag.message.contains("Jujutsu diff3 conflict marker"));
+    }
 }
 
 #[test]

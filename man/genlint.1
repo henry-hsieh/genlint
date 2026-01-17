@@ -4,7 +4,7 @@
 .SH NAME
 genlint \- A generic, configurable linter for multiple languages
 .SH SYNOPSIS
-\fBgenlint\fR [\fB\-s\fR|\fB\-\-stdin\fR] [\fB\-i\fR|\fB\-\-input\fR] [\fB\-e\fR|\fB\-\-exclude\fR] [\fB\-f\fR|\fB\-\-format\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-d\fR|\fB\-\-disable\fR] [\fB\-a\fR|\fB\-\-text\fR] [\fB\-l\fR|\fB\-\-max\-line\-length\fR] [\fB\-c\fR|\fB\-\-max\-consecutive\-blank\fR] [\fB\-\-max\-errors\fR] [\fB\-\-max\-warnings\fR] [\fB\-\-max\-info\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+\fBgenlint\fR [\fB\-s\fR|\fB\-\-stdin\fR] [\fB\-i\fR|\fB\-\-input\fR] [\fB\-e\fR|\fB\-\-exclude\fR] [\fB\-f\fR|\fB\-\-format\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-d\fR|\fB\-\-disable\fR] [\fB\-a\fR|\fB\-\-text\fR] [\fB\-l\fR|\fB\-\-max\-line\-length\fR] [\fB\-c\fR|\fB\-\-max\-consecutive\-blank\fR] [\fB\-\-max\-errors\fR] [\fB\-\-max\-warnings\fR] [\fB\-\-max\-info\fR] [\fB\-m\fR|\fB\-\-conflict\-marker\-style\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
 A generic, configurable linter for multiple languages
 .SH OPTIONS
@@ -52,6 +52,13 @@ Maximum number of warnings to report (set to 0 for no limit)
 .TP
 \fB\-\-max\-info\fR \fI<NUM>\fR [default: 0]
 Maximum number of information to report (set to 0 for no limit)
+.TP
+\fB\-m\fR, \fB\-\-conflict\-marker\-style\fR \fI<STYLE>\fR [default: git]
+Conflict marker style
+.br
+
+.br
+[\fIpossible values: \fRgit, git\-diff3, jj, jj\-diff3, jj\-snapshot]
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

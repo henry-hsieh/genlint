@@ -12,7 +12,7 @@ A generic and flexible linter tool written in Rust. The genlint supports multipl
 - Check for common issues such as:
   - Mixed indentation
   - Trailing whitespace
-  - Git conflict markers
+  - Conflict markers (configurable styles: [Git](https://git-scm.com/docs/git-merge.html#_how_conflicts_are_presented), [Jujutsu](https://docs.jj-vcs.dev/latest/conflicts/))
   - Long lines
   - Consecutive blank lines
   - Missing final newline
@@ -39,6 +39,9 @@ cat main.rs | genlint --stdin --format json
 
 # Disable certain checks
 genlint --input "src/**/*.rs" --disable long-line,consecutive-blank
+
+# Use JJ conflict marker style
+genlint --input "src/**/*.rs" --conflict-marker-style jj
 ```
 
 ---
@@ -47,7 +50,7 @@ genlint --input "src/**/*.rs" --disable long-line,consecutive-blank
 
 - `mixed-indent`: Detect mixed tabs and spaces
 - `trailing-space`: Detect trailing whitespaces or tabs
-- `conflict-marker`: Detect Git conflict markers
+- `conflict-marker`: Detect conflict markers (configurable style: git, git-diff3, jj, jj-diff3, jj-snapshot)
 - `long-line`: Warn when line exceeds a max length (default: 120)
 - `consecutive-blank`: Warn if more than two consecutive blank lines
 - `final-newline`: Warn if missing newline at EOF

@@ -1,4 +1,4 @@
-use crate::enums::{DisableCheck, Format};
+use crate::enums::{ConflictMarkerStyle, DisableCheck, Format};
 use clap::{Arg, ArgAction, ArgGroup, Command, arg, value_parser};
 use clap_complete::Shell;
 use std::path::PathBuf;
@@ -68,6 +68,11 @@ pub fn build_cli() -> Command {
             arg!(--"max-info" <NUM> "Maximum number of information to report (set to 0 for no limit)")
                 .value_parser(value_parser!(usize))
                 .default_value("0"),
+        )
+        .arg(
+            arg!(-m --"conflict-marker-style" <STYLE> "Conflict marker style")
+                .value_parser(value_parser!(ConflictMarkerStyle))
+                .default_value("git"),
         )
         .subcommand(
             Command::new("generate-completion")

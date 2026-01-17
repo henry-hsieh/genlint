@@ -38,6 +38,8 @@ Register-ArgumentCompleter -Native -CommandName 'genlint' -ScriptBlock {
             [CompletionResult]::new('--max-errors', '--max-errors', [CompletionResultType]::ParameterName, 'Maximum number of errors to report (set to 0 for no limit)')
             [CompletionResult]::new('--max-warnings', '--max-warnings', [CompletionResultType]::ParameterName, 'Maximum number of warnings to report (set to 0 for no limit)')
             [CompletionResult]::new('--max-info', '--max-info', [CompletionResultType]::ParameterName, 'Maximum number of information to report (set to 0 for no limit)')
+            [CompletionResult]::new('-m', '-m', [CompletionResultType]::ParameterName, 'Conflict marker style')
+            [CompletionResult]::new('--conflict-marker-style', '--conflict-marker-style', [CompletionResultType]::ParameterName, 'Conflict marker style')
             [CompletionResult]::new('-s', '-s', [CompletionResultType]::ParameterName, 'Read input from stdin')
             [CompletionResult]::new('--stdin', '--stdin', [CompletionResultType]::ParameterName, 'Read input from stdin')
             [CompletionResult]::new('-a', '-a', [CompletionResultType]::ParameterName, 'Treat all input as text, bypassing binary detection')

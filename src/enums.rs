@@ -16,3 +16,12 @@ pub enum DisableCheck {
     ConsecutiveBlank,
     FinalNewline,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum ConflictMarkerStyle {
+    Git,
+    GitDiff3,
+    Jj,
+    JjDiff3,
+    JjSnapshot,
+}
