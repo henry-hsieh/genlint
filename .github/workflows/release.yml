@@ -122,7 +122,7 @@ jobs:
           echo "IS_RELEASE=${IS_RELEASE}" >> $GITHUB_OUTPUT
 
       - name: Get token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         if: steps.is-release.outputs.IS_RELEASE
         id: get_token
         with:
