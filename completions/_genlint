@@ -60,7 +60,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
-":: :_genlint__help_commands" \
+":: :_genlint__subcmd__help_commands" \
 "*::: :->help" \
 && ret=0
 
@@ -95,26 +95,26 @@ _genlint_commands() {
     )
     _describe -t commands 'genlint commands' commands "$@"
 }
-(( $+functions[_genlint__generate-completion_commands] )) ||
-_genlint__generate-completion_commands() {
+(( $+functions[_genlint__subcmd__generate-completion_commands] )) ||
+_genlint__subcmd__generate-completion_commands() {
     local commands; commands=()
     _describe -t commands 'genlint generate-completion commands' commands "$@"
 }
-(( $+functions[_genlint__help_commands] )) ||
-_genlint__help_commands() {
+(( $+functions[_genlint__subcmd__help_commands] )) ||
+_genlint__subcmd__help_commands() {
     local commands; commands=(
 'generate-completion:Generate shell completions' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'genlint help commands' commands "$@"
 }
-(( $+functions[_genlint__help__generate-completion_commands] )) ||
-_genlint__help__generate-completion_commands() {
+(( $+functions[_genlint__subcmd__help__subcmd__generate-completion_commands] )) ||
+_genlint__subcmd__help__subcmd__generate-completion_commands() {
     local commands; commands=()
     _describe -t commands 'genlint help generate-completion commands' commands "$@"
 }
-(( $+functions[_genlint__help__help_commands] )) ||
-_genlint__help__help_commands() {
+(( $+functions[_genlint__subcmd__help__subcmd__help_commands] )) ||
+_genlint__subcmd__help__subcmd__help_commands() {
     local commands; commands=()
     _describe -t commands 'genlint help help commands' commands "$@"
 }

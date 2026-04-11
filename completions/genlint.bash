@@ -17,16 +17,16 @@ _genlint() {
                 cmd="genlint"
                 ;;
             genlint,generate-completion)
-                cmd="genlint__generate__completion"
+                cmd="genlint__subcmd__generate__subcmd__completion"
                 ;;
             genlint,help)
-                cmd="genlint__help"
+                cmd="genlint__subcmd__help"
                 ;;
-            genlint__help,generate-completion)
-                cmd="genlint__help__generate__completion"
+            genlint__subcmd__help,generate-completion)
+                cmd="genlint__subcmd__help__subcmd__generate__subcmd__completion"
                 ;;
-            genlint__help,help)
-                cmd="genlint__help__help"
+            genlint__subcmd__help,help)
+                cmd="genlint__subcmd__help__subcmd__help"
                 ;;
             *)
                 ;;
@@ -124,7 +124,7 @@ _genlint() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        genlint__generate__completion)
+        genlint__subcmd__generate__subcmd__completion)
             opts="-h --help bash elvish fish powershell zsh"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -138,7 +138,7 @@ _genlint() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        genlint__help)
+        genlint__subcmd__help)
             opts="generate-completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -152,7 +152,7 @@ _genlint() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        genlint__help__generate__completion)
+        genlint__subcmd__help__subcmd__generate__subcmd__completion)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -166,7 +166,7 @@ _genlint() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        genlint__help__help)
+        genlint__subcmd__help__subcmd__help)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
