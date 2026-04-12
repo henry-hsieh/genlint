@@ -130,7 +130,7 @@ jobs:
           private-key: ${{ secrets.PRIVATE_KEY }}
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: ${{ steps.get_token.outcome == 'success' }}
         with:
           files: dist/*
