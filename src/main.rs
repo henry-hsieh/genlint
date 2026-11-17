@@ -2,6 +2,7 @@ mod args;
 mod enums;
 mod lint;
 mod output;
+mod rules;
 mod types;
 mod util;
 
